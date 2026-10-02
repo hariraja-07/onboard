@@ -64,6 +64,13 @@ class _BarcodeScannerPageState extends ConsumerState<BarcodeScannerPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan ID Card'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bug_report_outlined),
+            tooltip: 'Manual test screen',
+            onPressed: () => context.push('/attendance/debug'),
+          ),
+        ],
       ),
       body: Column(
         children: [
