@@ -5,7 +5,7 @@ import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 
 void main() {
-  runApp(const OnBoardApp());
+  runApp(const ProviderScope(child: OnBoardApp()));
 }
 
 class OnBoardApp extends ConsumerWidget {

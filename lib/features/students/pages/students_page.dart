@@ -16,7 +16,11 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
   @override
   void initState() {
     super.initState();
-    ref.read(studentsProvider.notifier).loadStudents();
+    // Deferred: loadStudents publishes its loading state immediately, and
+    // mutating a provider while the tree is building is not allowed.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(studentsProvider.notifier).loadStudents();
+    });
   }
 
   @override
