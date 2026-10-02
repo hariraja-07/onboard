@@ -104,3 +104,17 @@ class StudentAttendance {
   String toString() =>
       'StudentAttendance(${student.rollNo}, ${status.wireValue})';
 }
+
+/// The outcome of asking the database to mark a student present.
+///
+/// [isNew] distinguishes a first scan from a repeat. Both return the record
+/// that exists afterwards, which for a repeat is the *original* one, keeping the
+/// student's true arrival time intact.
+class MarkPresentResult {
+  const MarkPresentResult({required this.record, required this.isNew});
+
+  final AttendanceRecord record;
+
+  /// True when this call created the row, false when one already existed.
+  final bool isNew;
+}
