@@ -30,6 +30,12 @@ dependencies:
   # Barcode / QR scanner
   mobile_scanner: ^4.0.0
 
+  # Excel / XLSX import and export
+  excel_community: ^2.4.2
+
+  # Native file picker (also used for save-as downloads)
+  file_picker: ^13.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
