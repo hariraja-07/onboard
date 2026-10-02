@@ -1,15 +1,28 @@
-// Placeholder database service — replace with Drift when tables are defined.
-// This keeps the app launching offline without cloud dependencies.
+import 'dart:io';
+import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 
-class AppDatabase {
-  AppDatabase._();
+import 'tables.dart';
+
+part 'database.g.dart';
+
+@DriftDatabase(tables: [Students, AttendanceSessions, AttendanceRecords])
+class AppDatabase extends _$AppDatabase {
+  AppDatabase._() : super(_openConnection());
   static final AppDatabase instance = AppDatabase._();
 
-  bool _initialized = false;
+  @override
+  int get schemaVersion => 1;
 
-  Future<void> init() async {
-    _initialized = true;
-  }
+  // Table access — use generated fields directly: $students, $attendanceSessions, $attendanceRecords
+}
 
-  bool get isInitialized => _initialized;
+LazyDatabase _openConnection() {
+  return LazyDatabase(() async {
+    final dbFolder = await getApplicationDocumentsDirectory();
+    final file = File(p.join(dbFolder.path, 'onboard.db'));
+    return NativeDatabase(file);
+  });
 }
