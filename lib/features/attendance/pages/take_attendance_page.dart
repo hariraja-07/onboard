@@ -6,6 +6,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../attendance_controller.dart';
 import '../models/attendance_models.dart';
 import '../widgets/attendance_result_banner.dart';
+import '../widgets/attendance_roster_table.dart';
 
 /// Primary Take Attendance screen.
 ///
@@ -193,24 +194,17 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
           ),
           const Divider(),
           Expanded(
-            child: roster.isEmpty
-                ? const Center(child: Text('No students match the current filters'))
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    itemCount: roster.length,
-                    itemBuilder: (context, index) {
-                      final entry = roster[index];
-                      return _RosterTile(entry: entry);
-                    },
-                  ),
+            child: AttendanceRosterTable(
+              state: state,
+              filtered: roster,
+              filter: _filter,
+            ),
           ),
         ],
       ),
     );
   }
 }
-
-enum AttendanceFilter { present, absent }
 
 class _CameraSection extends StatelessWidget {
   const _CameraSection({
@@ -316,30 +310,3 @@ class _SessionActions extends StatelessWidget {
   }
 }
 
-class _RosterTile extends StatelessWidget {
-  const _RosterTile({required this.entry});
-
-  final StudentAttendance entry;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isPresent = entry.isPresent;
-    return Card(
-      elevation: 0,
-      color: isPresent
-          ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
-          : theme.colorScheme.surfaceContainer,
-      child: ListTile(
-        leading: CircleAvatar(
-          child: Text(entry.student.rollNo.isNotEmpty ? entry.student.rollNo[0].toUpperCase() : '?'),
-        ),
-        title: Text(entry.student.name.isNotEmpty ? entry.student.name : entry.student.rollNo),
-        subtitle: Text(entry.student.rollNo),
-        trailing: isPresent
-            ? const Icon(Icons.check_circle, color: Colors.green)
-            : const Icon(Icons.radio_button_unchecked),
-      ),
-    );
-  }
-}

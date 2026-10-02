@@ -118,3 +118,5 @@ class MarkPresentResult {
   /// True when this call created the row, false when one already existed.
   final bool isNew;
 }
+
+enum AttendanceFilter { present, absent }
