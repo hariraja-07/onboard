@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../students_controller.dart';
 import '../../../core/database/database.dart';
@@ -23,7 +24,16 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
     final state = ref.watch(studentsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Students')),
+      appBar: AppBar(
+        title: const Text('Students'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.upload_file),
+            tooltip: 'Import from Excel',
+            onPressed: () => context.push('/students/import'),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           _buildFilters(state),

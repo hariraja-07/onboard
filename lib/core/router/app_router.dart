@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/dashboard/pages/dashboard_page.dart';
 import '../../features/students/pages/students_page.dart';
+import '../../features/students/import/pages/import_students_page.dart';
 import '../../features/attendance/pages/attendance_page.dart';
 import '../../features/history/pages/history_page.dart';
 import '../../features/reports/pages/reports_page.dart';
@@ -22,7 +23,18 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [GoRoute(path: '/', builder: (c, s) => const DashboardPage())],
           ),
           StatefulShellBranch(
-            routes: [GoRoute(path: '/students', builder: (c, s) => const StudentsPage())],
+            routes: [
+              GoRoute(
+                path: '/students',
+                builder: (c, s) => const StudentsPage(),
+                routes: [
+                  GoRoute(
+                    path: 'import',
+                    builder: (c, s) => const ImportStudentsPage(),
+                  ),
+                ],
+              ),
+            ],
           ),
           StatefulShellBranch(
             routes: [GoRoute(path: '/attendance', builder: (c, s) => const TakeAttendancePage())],
