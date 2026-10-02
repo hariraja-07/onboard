@@ -1,14 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/database/database.dart';
+import '../../core/database/providers.dart';
 import '../../core/database/repositories/student_repository.dart';
 
-final studentRepositoryProvider = Provider<StudentRepository>((ref) {
-  return StudentRepository(AppDatabase.instance);
-});
-
 final studentsProvider = StateNotifierProvider<StudentsNotifier, StudentsState>((ref) {
-  return StudentsNotifier(ref.read(studentRepositoryProvider));
+  return StudentsNotifier(ref.watch(studentRepositoryProvider));
 });
 
 class StudentsState {
