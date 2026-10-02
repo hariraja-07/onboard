@@ -13,6 +13,12 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase._() : super(_openConnection());
   static final AppDatabase instance = AppDatabase._();
 
+  /// Builds a database on a caller-supplied executor.
+  ///
+  /// Exists so tests can run against an in-memory database without touching
+  /// the on-disk file or `path_provider`.
+  AppDatabase.forTesting(super.executor);
+
   @override
   int get schemaVersion => 1;
 
