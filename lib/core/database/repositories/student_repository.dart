@@ -38,6 +38,22 @@ class StudentRepository {
         ));
   }
 
+  /// Inserts many students in a single transaction.
+  ///
+  /// Either every row lands or none does, so a failure part-way through a large
+  /// import cannot leave a half-imported roster behind.
+  Future<void> insertAll(List<StudentsCompanion> entries) {
+    return db.batch((batch) => batch.insertAll(db.students, entries));
+  }
+
+  /// Every roll number currently stored, used to spot students an Excel import
+  /// would otherwise duplicate. Returns values as stored.
+  Future<List<String>> allRollNos() async {
+    final query = db.selectOnly(db.students)..addColumns([db.students.rollNo]);
+    final rows = await query.get();
+    return rows.map((row) => row.read(db.students.rollNo) ?? '').toList();
+  }
+
   Future<int> update({
     required int id,
     required String name,
