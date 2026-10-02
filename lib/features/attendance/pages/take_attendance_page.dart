@@ -5,6 +5,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../attendance_controller.dart';
 import '../models/attendance_models.dart';
+import '../widgets/attendance_result_banner.dart';
 
 /// Primary Take Attendance screen.
 ///
@@ -131,6 +132,8 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
             onToggleTorch: _toggleTorch,
             onFlipCamera: _flipCamera,
           ),
+          const SizedBox(height: 8),
+          AttendanceResultBanner(state: state),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
