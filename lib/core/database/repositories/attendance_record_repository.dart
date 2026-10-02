@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-import '../../database/database.dart';
+import '../database.dart';
 
 class AttendanceRecordRepository {
   final AppDatabase db;
