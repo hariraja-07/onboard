@@ -1,4 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Declared explicitly rather than inherited from the mobile_scanner
+         plugin manifest, so the requirement is visible where it is used. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- The app still runs on devices without a camera; scanning is simply
+         unavailable there. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
     <application
         android:label="onboard"
         android:name="${applicationName}"
