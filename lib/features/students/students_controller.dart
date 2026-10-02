@@ -25,21 +25,35 @@ class StudentsState {
     this.boardingPointFilter,
   });
 
+  /// Distinguishes "argument not supplied" from "argument supplied as null".
+  ///
+  /// A plain `String?` parameter plus `?? this.error` cannot do that: passing
+  /// `null` is indistinguishable from omitting the argument, so the old error
+  /// was always kept. That made [error] impossible to clear and wedged the
+  /// Students screen on its error view, because clearing only ever happened
+  /// on the load path that was itself broken. The same trap applied to both
+  /// filter fields, so `clearFilters()` silently kept them.
+  static const Object _unset = Object();
+
   StudentsState copyWith({
     List<Student>? students,
     bool? isLoading,
-    String? error,
+    Object? error = _unset,
     String? searchQuery,
-    String? institutionFilter,
-    String? boardingPointFilter,
+    Object? institutionFilter = _unset,
+    Object? boardingPointFilter = _unset,
   }) {
     return StudentsState(
       students: students ?? this.students,
       isLoading: isLoading ?? this.isLoading,
-      error: error ?? this.error,
+      error: identical(error, _unset) ? this.error : error as String?,
       searchQuery: searchQuery ?? this.searchQuery,
-      institutionFilter: institutionFilter ?? this.institutionFilter,
-      boardingPointFilter: boardingPointFilter ?? this.boardingPointFilter,
+      institutionFilter: identical(institutionFilter, _unset)
+          ? this.institutionFilter
+          : institutionFilter as String?,
+      boardingPointFilter: identical(boardingPointFilter, _unset)
+          ? this.boardingPointFilter
+          : boardingPointFilter as String?,
     );
   }
 
