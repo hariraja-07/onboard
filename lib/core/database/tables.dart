@@ -20,6 +20,21 @@ class AttendanceSessions extends Table {
   TextColumn get status => text().withLength(min: 1, max: 20)();
 }
 
+/// One record per student per session, enforced by SQLite.
+///
+/// Declared as a unique index rather than a `uniqueKeys` entry. `uniqueKeys`
+/// emits an inline `UNIQUE(...)` inside `CREATE TABLE`, but SQLite cannot add a
+/// table constraint to a table that already exists, so a migrated database
+/// would end up with a standalone index while a fresh one had an inline
+/// constraint — functionally equal but structurally different.
+///
+/// Relying on the database rather than a check-then-insert in Dart is what
+/// stops a fast double scan of the same card from writing two rows.
+@TableIndex(
+  name: 'idx_attendance_records_session_student',
+  columns: {#sessionId, #studentId},
+  unique: true,
+)
 class AttendanceRecords extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get sessionId => integer().references(AttendanceSessions, #id)();

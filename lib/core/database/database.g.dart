@@ -1517,6 +1517,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $AttendanceSessionsTable(this);
   late final $AttendanceRecordsTable attendanceRecords =
       $AttendanceRecordsTable(this);
+  late final Index idxAttendanceRecordsSessionStudent = Index(
+    'idx_attendance_records_session_student',
+    'CREATE UNIQUE INDEX idx_attendance_records_session_student ON attendance_records (session_id, student_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1525,6 +1529,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     students,
     attendanceSessions,
     attendanceRecords,
+    idxAttendanceRecordsSessionStudent,
   ];
 }
 

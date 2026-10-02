@@ -20,7 +20,24 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            // Replays the indexes declared on the tables themselves, read out
+            // of the generated schema rather than hand-written as SQL here.
+            // That is what guarantees a migrated database ends up structurally
+            // identical to a freshly created one: there is no second copy of
+            // the statement that could fall out of step with the annotation.
+            for (final entity in m.database.allSchemaEntities.whereType<Index>()) {
+              await m.createIndex(entity);
+            }
+          }
+        },
+      );
 
   // Table access — use generated fields directly: $students, $attendanceSessions, $attendanceRecords
 }
