@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'database.dart';
 import 'repositories/student_repository.dart';
 import 'repositories/attendance_session_repository.dart';
+import 'repositories/attendance_session_roster_repository.dart';
 import 'repositories/attendance_record_repository.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -19,4 +20,8 @@ final attendanceSessionRepositoryProvider = Provider<AttendanceSessionRepository
 
 final attendanceRecordRepositoryProvider = Provider<AttendanceRecordRepository>((ref) {
   return AttendanceRecordRepository(ref.watch(databaseProvider));
+});
+
+final attendanceSessionRosterRepositoryProvider = Provider<AttendanceSessionRosterRepository>((ref) {
+  return AttendanceSessionRosterRepository(ref.watch(databaseProvider));
 });

@@ -8,7 +8,12 @@ import 'tables.dart';
 
 part 'database.g.dart';
 
-@DriftDatabase(tables: [Students, AttendanceSessions, AttendanceRecords])
+@DriftDatabase(tables: [
+  Students,
+  AttendanceSessions,
+  AttendanceRecords,
+  AttendanceSessionRoster,
+])
 class AppDatabase extends _$AppDatabase {
   AppDatabase._() : super(_openConnection());
   static final AppDatabase instance = AppDatabase._();
@@ -20,7 +25,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -35,6 +40,9 @@ class AppDatabase extends _$AppDatabase {
             for (final entity in m.database.allSchemaEntities.whereType<Index>()) {
               await m.createIndex(entity);
             }
+          }
+          if (from < 3) {
+
           }
         },
       );

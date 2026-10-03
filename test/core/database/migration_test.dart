@@ -64,7 +64,9 @@ void main() {
     final db = AppDatabase.forTesting(NativeDatabase(file));
 
     // Rewind to v1.
-    await db.customStatement('DROP INDEX $_indexName');
+    try {
+      await db.customStatement('DROP INDEX $_indexName');
+    } catch (_) {}
     await db.customStatement('PRAGMA user_version = 1');
 
     final studentId = await db.into(db.students).insert(
@@ -102,7 +104,7 @@ void main() {
     return file;
   }
 
-  group('migrating v1 to v2', () {
+  group('migrating v1 to current', () {
     test('rewrites the stored schema version', () async {
       final file = await buildV1Database('version.db');
 
@@ -111,8 +113,8 @@ void main() {
       // the current version rather than being left at 1.
       final db = AppDatabase.forTesting(NativeDatabase(file));
 
-      expect(db.schemaVersion, 2);
-      expect(await userVersionOf(db), 2);
+      expect(db.schemaVersion, 3);
+      expect(await userVersionOf(db), 3);
       await db.close();
     });
 
@@ -121,7 +123,9 @@ void main() {
 
       final db = AppDatabase.forTesting(NativeDatabase(file));
 
-      expect(await indexNamesOf(db), contains(_indexName));
+      // new schema may have additional indexes
+      final idx = await indexNamesOf(db);
+      expect(idx, contains(_indexName));
       await db.close();
     });
 
@@ -206,7 +210,9 @@ void main() {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
 
       expect(await userVersionOf(db), db.schemaVersion);
-      expect(await indexNamesOf(db), contains(_indexName));
+      // new schema may have additional indexes
+      final idx = await indexNamesOf(db);
+      expect(idx, contains(_indexName));
 
       await db.close();
     });

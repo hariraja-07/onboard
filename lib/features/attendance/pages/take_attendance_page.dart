@@ -77,6 +77,7 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
       final matchesFilter = switch (_filter) {
         AttendanceFilter.present => entry.isPresent,
         AttendanceFilter.absent => !entry.isPresent,
+        AttendanceFilter.all => true,
       };
       if (!matchesFilter) continue;
       if (query.isNotEmpty) {

@@ -1,23 +1,66 @@
 import 'package:drift/drift.dart';
 
-import '../../../features/attendance/models/attendance_models.dart';
 import '../database.dart';
+import '../../../features/attendance/models/attendance_models.dart';
 
 class AttendanceSessionRepository {
-  final AppDatabase db;
+  AttendanceSessionRepository(this._db);
 
-  AttendanceSessionRepository(this.db);
+  final AppDatabase _db;
 
-  Future<List<AttendanceSession>> getAll() => db.select(db.attendanceSessions).get();
+  Future<int> createOpen({
+    required DateTime attendanceDate,
+    DateTime? createdAt,
+  }) async {
+    final now = createdAt ?? DateTime.now();
+    final id = await _db
+        .into(_db.attendanceSessions)
+        .insert(
+          AttendanceSessionsCompanion.insert(
+            attendanceDate: DateTime(
+              attendanceDate.year,
+              attendanceDate.month,
+              attendanceDate.day,
+            ),
+            status: 'open',
+            createdAt: now,
+          ),
+        );
+    return id;
+  }
 
-  Future<AttendanceSession?> findById(int id) =>
-      (db.select(db.attendanceSessions)..where((t) => t.id.equals(id))).getSingleOrNull();
-
-  Future<List<AttendanceSession>> forDate(DateTime date) {
-    final start = DateTime(date.year, date.month, date.day);
+  Future<AttendanceSession?> findOpenForDate(DateTime attendanceDate) async {
+    final start = DateTime(
+      attendanceDate.year,
+      attendanceDate.month,
+      attendanceDate.day,
+    );
     final end = start.add(const Duration(days: 1));
-    return (db.select(db.attendanceSessions)
-          ..where((t) => t.attendanceDate.isBetweenValues(start, end)))
+    return (_db.select(_db.attendanceSessions)
+          ..where(
+            (tbl) =>
+                tbl.attendanceDate.isBiggerOrEqualValue(start) &
+                tbl.attendanceDate.isSmallerThanValue(end) &
+                tbl.status.equals('open'),
+          )
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  Future<List<AttendanceSession>> forDate(DateTime attendanceDate) async {
+    final start = DateTime(
+      attendanceDate.year,
+      attendanceDate.month,
+      attendanceDate.day,
+    );
+    final end = start.add(const Duration(days: 1));
+    return (_db.select(_db.attendanceSessions)
+          ..where(
+            (tbl) =>
+                tbl.attendanceDate.isBiggerOrEqualValue(start) &
+                tbl.attendanceDate.isSmallerThanValue(end),
+          )
+          ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)]))
         .get();
   }
 
@@ -25,54 +68,78 @@ class AttendanceSessionRepository {
     required DateTime attendanceDate,
     required DateTime createdAt,
     required String status,
-  }) {
-    return db.into(db.attendanceSessions).insert(
-          AttendanceSessionsCompanion(
-            attendanceDate: Value(attendanceDate),
-            createdAt: Value(createdAt),
-            status: Value(status),
+  }) async {
+    return _db
+        .into(_db.attendanceSessions)
+        .insert(
+          AttendanceSessionsCompanion.insert(
+            attendanceDate: attendanceDate,
+            status: status,
+            createdAt: createdAt,
           ),
         );
   }
 
-  /// Starts a session for a date.
-  Future<int> createOpen({
-    required DateTime attendanceDate,
-    required DateTime createdAt,
-  }) {
-    return insert(
-      attendanceDate: attendanceDate,
-      createdAt: createdAt,
-      status: AttendanceSessionStatus.open.wireValue,
-    );
-  }
-
-  /// The open session for a date, or null if none is in progress.
-  ///
-  /// Lets an interrupted session be picked back up rather than being lost to an
-  /// accidental close. Takes the most recent match rather than a single-or-null
-  /// read, so a duplicate left behind by an earlier version cannot throw.
-  Future<AttendanceSession?> findOpenForDate(DateTime date) async {
-    final start = DateTime(date.year, date.month, date.day);
-    final end = start.add(const Duration(days: 1));
-    final matches = await (db.select(db.attendanceSessions)
-          ..where((t) =>
-              t.attendanceDate.isBetweenValues(start, end) &
-              t.status.equals(AttendanceSessionStatus.open.wireValue))
-          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
-        .get();
-    return matches.isEmpty ? null : matches.first;
-  }
-
-  Future<int> complete(int id, DateTime completedAt) {
-    return (db.update(db.attendanceSessions)..where((t) => t.id.equals(id))).write(
+  Future<void> finishSession(int sessionId, {DateTime? endedAt}) async {
+    await (_db.update(
+      _db.attendanceSessions,
+    )..where((tbl) => tbl.id.equals(sessionId))).write(
       AttendanceSessionsCompanion(
-        completedAt: Value(completedAt),
-        status: Value(AttendanceSessionStatus.completed.wireValue),
+        status: const Value('completed'),
+        endedAt: Value(endedAt ?? DateTime.now()),
       ),
     );
   }
 
-  Future<int> delete(int id) =>
-      (db.delete(db.attendanceSessions)..where((t) => t.id.equals(id))).go();
+  Future<List<AttendanceSessionSummary>> listSessions({
+    DateTime? date,
+    int limit = 200,
+  }) async {
+    final query = _db.select(_db.attendanceSessions)
+      ..orderBy([
+        (t) => OrderingTerm.desc(t.attendanceDate),
+        (t) => OrderingTerm.desc(t.createdAt),
+      ])
+      ..limit(limit);
+    final sessions = await query.get();
+    final results = <AttendanceSessionSummary>[];
+    for (final s in sessions) {
+      final rosterRows = await (_db.select(
+        _db.attendanceSessionRoster,
+      )..where((r) => r.sessionId.equals(s.id))).get();
+      final recordRows = await (_db.select(
+        _db.attendanceRecords,
+      )..where((r) => r.sessionId.equals(s.id))).get();
+      final total = rosterRows.length;
+      final present = recordRows.length;
+      final absent = total > present ? total - present : 0;
+      final percent = total == 0 ? 0.0 : (present * 100.0 / total);
+      results.add(
+        AttendanceSessionSummary(
+          sessionId: s.id,
+          attendanceDate: s.attendanceDate,
+          status: s.status == 'completed'
+              ? AttendanceSessionStatus.completed
+              : AttendanceSessionStatus.open,
+          total: total,
+          present: present,
+          absent: absent,
+          percent: percent,
+          startedAt: s.createdAt,
+          endedAt: s.endedAt,
+        ),
+      );
+    }
+    return results;
+  }
+
+  Future<void> complete(int sessionId, [DateTime? finishedAt]) async {
+    await finishSession(sessionId, endedAt: finishedAt);
+  }
+
+  Future<AttendanceSession?> findById(int sessionId) async {
+    return (_db.select(
+      _db.attendanceSessions,
+    )..where((tbl) => tbl.id.equals(sessionId))).getSingleOrNull();
+  }
 }

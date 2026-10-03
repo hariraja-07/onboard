@@ -4,6 +4,7 @@ import '../../core/database/database.dart';
 import '../../core/database/providers.dart';
 import '../../core/database/repositories/attendance_record_repository.dart';
 import '../../core/database/repositories/attendance_session_repository.dart';
+import '../../core/database/repositories/attendance_session_roster_repository.dart';
 import '../../core/database/repositories/student_repository.dart';
 import 'barcode/barcode_service.dart';
 import 'models/attendance_models.dart';
@@ -27,16 +28,17 @@ enum AttendancePhase {
 }
 
 final attendanceControllerProvider =
-    StateNotifierProvider.autoDispose<AttendanceController, AttendanceState>(
-  (ref) {
-    return AttendanceController(
-      studentRepository: ref.watch(studentRepositoryProvider),
-      sessionRepository: ref.watch(attendanceSessionRepositoryProvider),
-      recordRepository: ref.watch(attendanceRecordRepositoryProvider),
-      service: const BarcodeService(),
-    );
-  },
-);
+    StateNotifierProvider.autoDispose<AttendanceController, AttendanceState>((
+      ref,
+    ) {
+      return AttendanceController(
+        studentRepository: ref.watch(studentRepositoryProvider),
+        sessionRepository: ref.watch(attendanceSessionRepositoryProvider),
+        recordRepository: ref.watch(attendanceRecordRepositoryProvider),
+        rosterRepository: ref.watch(attendanceSessionRosterRepositoryProvider),
+        service: const BarcodeService(),
+      );
+    });
 
 /// Everything the Take Attendance screen renders.
 class AttendanceState {
@@ -90,7 +92,8 @@ class AttendanceState {
   bool get canResume => resumableSessionId != null;
 
   /// True when there is no session to resume, so starting is the only option.
-  bool get needsNewSession => phase == AttendancePhase.awaitingStart && !canResume;
+  bool get needsNewSession =>
+      phase == AttendancePhase.awaitingStart && !canResume;
 
   int get totalCount => roster.length;
 
@@ -137,8 +140,9 @@ class AttendanceState {
       attendanceDate: identical(attendanceDate, _unset)
           ? this.attendanceDate
           : attendanceDate as DateTime?,
-      sessionId:
-          identical(sessionId, _unset) ? this.sessionId : sessionId as int?,
+      sessionId: identical(sessionId, _unset)
+          ? this.sessionId
+          : sessionId as int?,
       resumableSessionId: identical(resumableSessionId, _unset)
           ? this.resumableSessionId
           : resumableSessionId as int?,
@@ -175,16 +179,18 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     required StudentRepository studentRepository,
     required AttendanceSessionRepository sessionRepository,
     required AttendanceRecordRepository recordRepository,
+    AttendanceSessionRosterRepository? rosterRepository,
     required BarcodeService service,
     DateTime Function()? clock,
     Duration scanCooldown = defaultScanCooldown,
-  })  : _students = studentRepository,
-        _sessions = sessionRepository,
-        _records = recordRepository,
-        _service = service,
-        _clock = clock ?? DateTime.now,
-        _scanCooldown = scanCooldown,
-        super(const AttendanceState());
+  }) : _students = studentRepository,
+       _sessions = sessionRepository,
+       _records = recordRepository,
+       _roster = rosterRepository,
+       _service = service,
+       _clock = clock ?? DateTime.now,
+       _scanCooldown = scanCooldown,
+       super(const AttendanceState());
 
   /// How long an unchanged barcode is ignored after a camera scan. A card held
   /// in front of the lens is reported on every frame.
@@ -193,6 +199,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
   final StudentRepository _students;
   final AttendanceSessionRepository _sessions;
   final AttendanceRecordRepository _records;
+  final AttendanceSessionRosterRepository? _roster;
   final BarcodeService _service;
   final Duration _scanCooldown;
   final DateTime Function() _clock;
@@ -251,6 +258,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
         resumableSessionId: null,
         isMarking: false,
       );
+      await _captureRoster(id);
       state = state.copyWith(
         roster: await _buildRoster(),
         lastOutcome: null,
@@ -284,6 +292,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
         sessionId: id,
         isMarking: false,
       );
+      await _captureRoster(id);
       state = state.copyWith(
         roster: await _buildRoster(),
         lastOutcome: null,
@@ -304,7 +313,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     final id = state.sessionId;
     if (id == null) return;
     try {
-      await _sessions.complete(id, _clock());
+      await _sessions.complete(id);
       state = state.copyWith(
         phase: AttendancePhase.finished,
         sessionId: null,
@@ -346,9 +355,16 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     final sessionId = state.sessionId;
     if (!state.isActive || sessionId == null || state.isMarking) return;
 
-    state = state.copyWith(isMarking: true, lastBarcode: rawBarcode, error: null);
+    state = state.copyWith(
+      isMarking: true,
+      lastBarcode: rawBarcode,
+      error: null,
+    );
     try {
-      final match = _service.match(rawBarcode, state.roster.map((e) => e.student).toList());
+      final match = _service.match(
+        rawBarcode,
+        state.roster.map((e) => e.student).toList(),
+      );
 
       if (!match.isMatched || match.student == null) {
         // An ambiguous barcode names nobody in particular, so it must not mark
@@ -390,6 +406,19 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     }
   }
 
+  /// Freezes the current student details against [sessionId].
+  ///
+  /// History must show the name, institution and boarding point as they were
+  /// when attendance was taken, so later edits to a student cannot rewrite a
+  /// past session. [AttendanceSessionRosterRepository.insertRoster] is
+  /// idempotent, so resuming a session never overwrites an existing snapshot.
+  Future<void> _captureRoster(int sessionId) async {
+    final roster = _roster;
+    if (roster == null) return;
+    final students = await _students.getAll();
+    await roster.insertRoster(sessionId, students);
+  }
+
   /// Builds the roster, deriving PRESENT from the records already stored.
   Future<List<StudentAttendance>> _buildRoster() async {
     final sessionId = state.sessionId;
@@ -402,9 +431,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
       return all.map(StudentAttendance.absent).toList();
     }
     final records = await _records.forSession(sessionId);
-    final byStudent = {
-      for (final record in records) record.studentId: record,
-    };
+    final byStudent = {for (final record in records) record.studentId: record};
     return all
         .map(
           (student) => presentIds.contains(student.id)

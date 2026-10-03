@@ -82,7 +82,7 @@ class StudentAttendance {
 
   /// A student who has not been marked, and therefore has no record.
   const StudentAttendance.absent(Student student)
-      : this(student: student, status: AttendanceStatus.absent);
+    : this(student: student, status: AttendanceStatus.absent);
 
   final Student student;
 
@@ -119,4 +119,125 @@ class MarkPresentResult {
   final bool isNew;
 }
 
-enum AttendanceFilter { present, absent }
+/// Summary of an attendance session for the history list.
+class AttendanceSessionSummary {
+  const AttendanceSessionSummary({
+    required this.sessionId,
+    required this.attendanceDate,
+    required this.status,
+    required this.total,
+    required this.present,
+    required this.absent,
+    required this.percent,
+    this.startedAt,
+    this.endedAt,
+  });
+
+  final int sessionId;
+  final DateTime attendanceDate;
+  final AttendanceSessionStatus status;
+  final int total;
+  final int present;
+  final int absent;
+  final double percent;
+  final DateTime? startedAt;
+  final DateTime? endedAt;
+}
+
+/// A single roster entry in session details (uses snapshot fields).
+class AttendanceHistoryEntry {
+  const AttendanceHistoryEntry({
+    required this.sessionId,
+    required this.studentId,
+    required this.rollNo,
+    required this.name,
+    required this.institution,
+    required this.boardingPoint,
+    required this.status,
+    this.scannedAt,
+  });
+
+  final int sessionId;
+  final int studentId;
+  final String rollNo;
+  final String name;
+  final String institution;
+  final String boardingPoint;
+  final AttendanceStatus status;
+  final DateTime? scannedAt;
+}
+
+/// Filters for session details.
+class AttendanceHistoryFilters {
+  const AttendanceHistoryFilters({
+    this.query = '',
+    this.status = AttendanceFilter.all,
+    this.institution,
+    this.boardingPoint,
+  });
+
+  final String query;
+  final AttendanceFilter status;
+  final String? institution;
+  final String? boardingPoint;
+}
+
+/// A session's summary together with its frozen roster entries.
+class AttendanceSessionDetails {
+  const AttendanceSessionDetails({
+    required this.summary,
+    required this.entries,
+  });
+
+  final AttendanceSessionSummary summary;
+  final List<AttendanceHistoryEntry> entries;
+
+  List<String> get institutions => _distinct((e) => e.institution);
+
+  List<String> get boardingPoints => _distinct((e) => e.boardingPoint);
+
+  List<String> _distinct(String Function(AttendanceHistoryEntry) select) {
+    final seen = <String>{};
+    for (final entry in entries) {
+      seen.add(select(entry));
+    }
+    final values = seen.toList()..sort();
+    return values;
+  }
+
+  /// Applies the query and dropdown filters, keeping the roster order.
+  ///
+  /// Search matches roll number and name only, mirroring Take Attendance.
+  List<AttendanceHistoryEntry> filtered(AttendanceHistoryFilters filters) {
+    final query = filters.query.trim().toLowerCase();
+    return [
+      for (final entry in entries)
+        if (_matchesStatus(entry, filters.status) &&
+            _matchesDropdown(entry.institution, filters.institution) &&
+            _matchesDropdown(entry.boardingPoint, filters.boardingPoint) &&
+            (query.isEmpty ||
+                '${entry.rollNo} ${entry.name}'.toLowerCase().contains(query)))
+          entry,
+    ];
+  }
+
+  static bool _matchesStatus(
+    AttendanceHistoryEntry entry,
+    AttendanceFilter filter,
+  ) {
+    return switch (filter) {
+      AttendanceFilter.present => entry.status == AttendanceStatus.present,
+      AttendanceFilter.absent => entry.status == AttendanceStatus.absent,
+      AttendanceFilter.all => true,
+    };
+  }
+
+  static bool _matchesDropdown(String value, String? selected) {
+    if (selected == null || selected.isEmpty) return true;
+    return value == selected;
+  }
+}
+
+enum AttendanceFilter { present, absent, all }
+
+enum AttendanceSessionSummaryStatus { open, completed }

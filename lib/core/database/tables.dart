@@ -15,21 +15,11 @@ class Students extends Table {
 class AttendanceSessions extends Table {
   IntColumn get id => integer().autoIncrement()();
   DateTimeColumn get attendanceDate => dateTime()();
-  DateTimeColumn get createdAt => dateTime()();
-  DateTimeColumn get completedAt => dateTime().nullable()();
   TextColumn get status => text().withLength(min: 1, max: 20)();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get endedAt => dateTime().nullable()();
 }
 
-/// One record per student per session, enforced by SQLite.
-///
-/// Declared as a unique index rather than a `uniqueKeys` entry. `uniqueKeys`
-/// emits an inline `UNIQUE(...)` inside `CREATE TABLE`, but SQLite cannot add a
-/// table constraint to a table that already exists, so a migrated database
-/// would end up with a standalone index while a fresh one had an inline
-/// constraint — functionally equal but structurally different.
-///
-/// Relying on the database rather than a check-then-insert in Dart is what
-/// stops a fast double scan of the same card from writing two rows.
 @TableIndex(
   name: 'idx_attendance_records_session_student',
   columns: {#sessionId, #studentId},
@@ -46,4 +36,20 @@ class AttendanceRecords extends Table {
   TextColumn get status => text().withLength(min: 1, max: 20)();
   TextColumn get scannedBarcode => text().withLength(min: 1, max: 100)();
   DateTimeColumn get scannedAt => dateTime()();
+}
+
+class AttendanceSessionRoster extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get sessionId => integer().references(AttendanceSessions, #id)();
+  IntColumn get studentId => integer()();
+  TextColumn get rollNo => text()();
+  TextColumn get name => text()();
+  TextColumn get institution => text()();
+  TextColumn get boardingPoint => text()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+        {sessionId, studentId},
+      ];
 }

@@ -256,7 +256,7 @@ void main() {
 
       final session = await sessions.findById(id);
       expect(session!.status, AttendanceSessionStatus.open.wireValue);
-      expect(session.completedAt, isNull);
+      expect(session.endedAt, isNull);
     });
 
     test('findOpenForDate finds the open session for that day', () async {
@@ -269,7 +269,7 @@ void main() {
 
     test('findOpenForDate ignores a completed session', () async {
       final id = await openSession();
-      await sessions.complete(id, DateTime.utc(2026, 10, 3, 17));
+      await sessions.complete(id);
 
       expect(await sessions.findOpenForDate(DateTime.utc(2026, 10, 3)), isNull);
     });
@@ -302,7 +302,7 @@ void main() {
 
       final session = await sessions.findById(id);
       expect(session!.status, AttendanceSessionStatus.completed.wireValue);
-      expect(session.completedAt!.toUtc(), finishedAt);
+      expect(session.endedAt!.toUtc(), finishedAt);
     });
   });
 

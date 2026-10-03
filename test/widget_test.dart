@@ -24,24 +24,25 @@ void main() {
     // available under the test binding, so point it at a temporary one.
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/path_provider'),
-      (call) async => tempDir.path,
-    );
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (call) async => tempDir.path,
+        );
   });
 
   tearDown(() async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/path_provider'),
-      null,
-    );
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          null,
+        );
     if (tempDir.existsSync()) {
       tempDir.deleteSync(recursive: true);
     }
   });
 
-  testWidgets('app boots and the Students screen offers the Excel import',
-      (tester) async {
+  testWidgets('app boots and the Students screen offers the Excel import', (
+    tester,
+  ) async {
     await tester.pumpWidget(const ProviderScope(child: OnBoardApp()));
     await tester.pumpAndSettle();
 
@@ -76,6 +77,28 @@ void main() {
 
     // Unmount so the autoDispose providers drain inside the test rather than
     // stranding Riverpod's disposal timer past the end of it.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('the attendance history routes build', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: OnBoardApp()));
+    await tester.pumpAndSettle();
+
+    final router = ProviderScope.containerOf(
+      tester.element(find.byType(NavigationBar)),
+    ).read(routerProvider);
+
+    router.go('/history');
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Attendance History'), findsWidgets);
+
+    router.go('/history/1');
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Session Details'), findsWidgets);
+
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
