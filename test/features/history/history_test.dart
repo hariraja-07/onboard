@@ -99,6 +99,36 @@ void main() {
       expect(summary.total, 0);
       expect(summary.percent, 0);
     });
+
+    test('filters by date range and still counts each session', () async {
+      final older = await sessions.createOpen(
+        attendanceDate: DateTime(2026, 9, 1),
+        createdAt: DateTime(2026, 9, 1, 8),
+      );
+      final newer = await sessions.createOpen(
+        attendanceDate: DateTime(2026, 10, 3),
+        createdAt: DateTime(2026, 10, 3, 8),
+      );
+      final alice = await addStudent('24BMR016', name: 'Alice');
+      final bob = await addStudent('24BMR017', name: 'Bob');
+      await rosters.insertRoster(older, [alice]);
+      await rosters.insertRoster(newer, [alice, bob]);
+      await records.markPresent(
+        sessionId: newer,
+        student: alice,
+        rawBarcode: '24BMR016',
+        scannedAt: DateTime(2026, 10, 3, 9),
+      );
+
+      final october = await sessions.listSessions(
+        from: DateTime(2026, 10, 1),
+        to: DateTime(2026, 10, 31),
+      );
+      expect(october.map((s) => s.sessionId), [newer]);
+      expect(october.single.total, 2);
+      expect(october.single.present, 1);
+      expect(october.single.absent, 1);
+    });
   });
 
   group('sessionDetailsProvider', () {

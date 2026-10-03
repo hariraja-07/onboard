@@ -139,7 +139,8 @@ void main() {
       expect(
         repeat.record.scannedAt.toUtc(),
         scannedAt,
-        reason: 'the record must show when the student arrived, not when the '
+        reason:
+            'the record must show when the student arrived, not when the '
             'card happened to be read again',
       );
     });
@@ -166,38 +167,42 @@ void main() {
       expect(b.isNew, isTrue);
     });
 
-    test('the database itself refuses a duplicate, not just this method',
-        () async {
-      final sessionId = await openSession();
-      final student = await addStudent('24BMR016');
-      await records.markPresent(
-        sessionId: sessionId,
-        student: student,
-        rawBarcode: 'x',
-        scannedAt: scannedAt,
-      );
+    test(
+      'the database itself refuses a duplicate, not just this method',
+      () async {
+        final sessionId = await openSession();
+        final student = await addStudent('24BMR016');
+        await records.markPresent(
+          sessionId: sessionId,
+          student: student,
+          rawBarcode: 'x',
+          scannedAt: scannedAt,
+        );
 
-      // Deliberately bypassing markPresent. If this succeeds, then "Already
-      // Present" is only being enforced by application code, and any other
-      // writer could produce duplicates.
-      await expectLater(
-        db.into(db.attendanceRecords).insert(
-              AttendanceRecordsCompanion.insert(
-                sessionId: sessionId,
-                studentId: student.id,
-                rollNoSnapshot: student.rollNo,
-                nameSnapshot: student.name,
-                institutionSnapshot: student.institution,
-                boardingPointSnapshot: student.boardingPoint,
-                status: 'PRESENT',
-                scannedBarcode: 'x',
-                scannedAt: scannedAt,
+        // Deliberately bypassing markPresent. If this succeeds, then "Already
+        // Present" is only being enforced by application code, and any other
+        // writer could produce duplicates.
+        await expectLater(
+          db
+              .into(db.attendanceRecords)
+              .insert(
+                AttendanceRecordsCompanion.insert(
+                  sessionId: sessionId,
+                  studentId: student.id,
+                  rollNoSnapshot: student.rollNo,
+                  nameSnapshot: student.name,
+                  institutionSnapshot: student.institution,
+                  boardingPointSnapshot: student.boardingPoint,
+                  status: 'PRESENT',
+                  scannedBarcode: 'x',
+                  scannedAt: scannedAt,
+                ),
               ),
-            ),
-        throwsA(anything),
-      );
-      expect(await records.forSession(sessionId), hasLength(1));
-    });
+          throwsA(anything),
+        );
+        expect(await records.forSession(sessionId), hasLength(1));
+      },
+    );
   });
 
   group('lookups', () {
@@ -232,22 +237,27 @@ void main() {
       expect(await records.presentStudentIds(second), {student.id});
     });
 
-    test('findForStudent returns null before marking and the row after', () async {
-      final sessionId = await openSession();
-      final student = await addStudent('24BMR016');
+    test(
+      'findForStudent returns null before marking and the row after',
+      () async {
+        final sessionId = await openSession();
+        final student = await addStudent('24BMR016');
 
-      expect(await records.findForStudent(sessionId, student.id), isNull);
+        expect(await records.findForStudent(sessionId, student.id), isNull);
 
-      final marked = await records.markPresent(
-        sessionId: sessionId,
-        student: student,
-        rawBarcode: 'x',
-        scannedAt: scannedAt,
-      );
+        final marked = await records.markPresent(
+          sessionId: sessionId,
+          student: student,
+          rawBarcode: 'x',
+          scannedAt: scannedAt,
+        );
 
-      expect((await records.findForStudent(sessionId, student.id))!.id,
-          marked.record.id);
-    });
+        expect(
+          (await records.findForStudent(sessionId, student.id))!.id,
+          marked.record.id,
+        );
+      },
+    );
   });
 
   group('sessions', () {
@@ -280,18 +290,63 @@ void main() {
       expect(await sessions.findOpenForDate(DateTime.utc(2026, 10, 4)), isNull);
     });
 
-    test('findOpenForDate matches a session stored on a different time of day',
-        () async {
-      // Sessions are stored as a datetime but represent a whole day, so a
-      // session written at 18:00 must still be found by a 09:00 lookup.
-      await sessions.insert(
-        attendanceDate: DateTime.utc(2026, 10, 3, 18),
-        createdAt: DateTime.utc(2026, 10, 3, 18),
-        status: AttendanceSessionStatus.open.wireValue,
+    test(
+      'findOpenForDate matches a session stored on a different time of day',
+      () async {
+        // Sessions are stored as a datetime but represent a whole day, so a
+        // session written at 18:00 must still be found by a 09:00 lookup.
+        await sessions.insert(
+          attendanceDate: DateTime.utc(2026, 10, 3, 18),
+          createdAt: DateTime.utc(2026, 10, 3, 18),
+          status: AttendanceSessionStatus.open.wireValue,
+        );
+
+        expect(
+          await sessions.findOpenForDate(DateTime.utc(2026, 10, 3, 9)),
+          isNotNull,
+        );
+      },
+    );
+
+    test('findAnyOpen returns an open session regardless of date', () async {
+      final id = await openSession(forDate: DateTime.utc(2026, 9, 30));
+
+      expect((await sessions.findAnyOpen())!.id, id);
+    });
+
+    test('findAnyOpen ignores completed sessions', () async {
+      final id = await openSession();
+      await sessions.complete(id);
+
+      expect(await sessions.findAnyOpen(), isNull);
+    });
+
+    test(
+      'findOrCreateOpen reuses the open session instead of adding another',
+      () async {
+        final first = await sessions.findOrCreateOpen(
+          attendanceDate: DateTime.utc(2026, 10, 3),
+        );
+        final second = await sessions.findOrCreateOpen(
+          attendanceDate: DateTime.utc(2026, 10, 3),
+        );
+
+        expect(second, first);
+        expect(await sessions.forDate(DateTime.utc(2026, 10, 3)), hasLength(1));
+      },
+    );
+
+    test('findOrCreateOpen keeps a single open session across days', () async {
+      final first = await sessions.findOrCreateOpen(
+        attendanceDate: DateTime.utc(2026, 10, 3),
+      );
+      // A start while one is still open must not open a second session.
+      final second = await sessions.findOrCreateOpen(
+        attendanceDate: DateTime.utc(2026, 10, 4),
       );
 
-      expect(await sessions.findOpenForDate(DateTime.utc(2026, 10, 3, 9)),
-          isNotNull);
+      expect(second, first);
+      expect(await sessions.findAnyOpen(), isNotNull);
     });
 
     test('complete records the finish time and closed status', () async {
@@ -314,12 +369,19 @@ void main() {
     });
 
     test('reads PRESENT but does not recognise anything else as present', () {
-      expect(AttendanceStatus.fromWireValue('PRESENT'),
-          AttendanceStatus.present);
+      expect(
+        AttendanceStatus.fromWireValue('PRESENT'),
+        AttendanceStatus.present,
+      );
       expect(AttendanceStatus.fromWireValue('ABSENT'), AttendanceStatus.absent);
-      expect(AttendanceStatus.fromWireValue('present'), AttendanceStatus.absent);
-      expect(AttendanceStatus.fromWireValue('nonsense'),
-          AttendanceStatus.absent);
+      expect(
+        AttendanceStatus.fromWireValue('present'),
+        AttendanceStatus.absent,
+      );
+      expect(
+        AttendanceStatus.fromWireValue('nonsense'),
+        AttendanceStatus.absent,
+      );
     });
   });
 
@@ -331,8 +393,10 @@ void main() {
     });
 
     test('an ambiguous barcode reports the same as an unknown one', () {
-      expect(AttendanceScanOutcome.ambiguous.label,
-          AttendanceScanOutcome.notFound.label);
+      expect(
+        AttendanceScanOutcome.ambiguous.label,
+        AttendanceScanOutcome.notFound.label,
+      );
       expect(AttendanceScanOutcome.ambiguous.didMark, isFalse);
       expect(AttendanceScanOutcome.notFound.didMark, isFalse);
       expect(AttendanceScanOutcome.alreadyPresent.didMark, isFalse);

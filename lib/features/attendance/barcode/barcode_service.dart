@@ -41,9 +41,7 @@ class BarcodeService {
     }
 
     // Normalised roll number for each student, in the same order as `students`.
-    final rollNos = [
-      for (final student in students) normalise(student.rollNo),
-    ];
+    final rollNos = [for (final student in students) normalise(student.rollNo)];
 
     // Pass 1: an exact match. Roll numbers are unique in the database, so at
     // most one student can match here; scanning in order also means a

@@ -12,14 +12,15 @@ class StudentRepository {
   Future<Student?> findById(int id) =>
       (db.select(db.students)..where((t) => t.id.equals(id))).getSingleOrNull();
 
-  Future<Student?> findByRollNo(String rollNo) =>
-      (db.select(db.students)..where((t) => t.rollNo.equals(rollNo))).getSingleOrNull();
+  Future<Student?> findByRollNo(String rollNo) => (db.select(
+    db.students,
+  )..where((t) => t.rollNo.equals(rollNo))).getSingleOrNull();
 
   Future<List<Student>> search(String query) {
     final pattern = '%$query%';
-    return (db.select(db.students)
-          ..where((t) => t.name.like(pattern) | t.rollNo.like(pattern)))
-        .get();
+    return (db.select(
+      db.students,
+    )..where((t) => t.name.like(pattern) | t.rollNo.like(pattern))).get();
   }
 
   Future<int> insert({
@@ -29,13 +30,17 @@ class StudentRepository {
     required String boardingPoint,
   }) {
     final now = DateTime.now();
-    return db.into(db.students).insert(StudentsCompanion.insert(
-          rollNo: rollNo,
-          name: name,
-          institution: institution,
-          boardingPoint: boardingPoint,
-          createdAt: now,
-        ));
+    return db
+        .into(db.students)
+        .insert(
+          StudentsCompanion.insert(
+            rollNo: rollNo,
+            name: name,
+            institution: institution,
+            boardingPoint: boardingPoint,
+            createdAt: now,
+          ),
+        );
   }
 
   /// Inserts many students in a single transaction.
@@ -56,6 +61,7 @@ class StudentRepository {
 
   Future<int> update({
     required int id,
+    String? rollNo,
     required String name,
     required String institution,
     required String boardingPoint,
@@ -63,6 +69,7 @@ class StudentRepository {
     final now = DateTime.now();
     return (db.update(db.students)..where((t) => t.id.equals(id))).write(
       StudentsCompanion(
+        rollNo: rollNo == null ? const Value.absent() : Value(rollNo),
         name: Value(name),
         institution: Value(institution),
         boardingPoint: Value(boardingPoint),
@@ -71,6 +78,19 @@ class StudentRepository {
     );
   }
 
-  Future<int> delete(int id) =>
-      (db.delete(db.students)..where((t) => t.id.equals(id))).go();
+  /// Deletes a student together with every attendance record that references
+  /// them.
+  ///
+  /// Both tables are touched in one transaction: a student can never be left
+  /// behind with their records already gone, nor records left pointing at a
+  /// student who no longer exists. Historical roster snapshots are deliberately
+  /// untouched, so past sessions keep the names they were taken with.
+  Future<void> delete(int id) {
+    return db.transaction(() async {
+      await (db.delete(
+        db.attendanceRecords,
+      )..where((t) => t.studentId.equals(id))).go();
+      await (db.delete(db.students)..where((t) => t.id.equals(id))).go();
+    });
+  }
 }

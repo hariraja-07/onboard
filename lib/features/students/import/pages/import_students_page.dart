@@ -87,11 +87,11 @@ class _ImportStudentsPageState extends ConsumerState<ImportStudentsPage> {
   }
 
   static String _busyLabel(ImportStatus status) => switch (status) {
-        ImportStatus.picking => 'Waiting for file picker...',
-        ImportStatus.parsing => 'Reading spreadsheet...',
-        ImportStatus.importing => 'Adding students...',
-        _ => '',
-      };
+    ImportStatus.picking => 'Waiting for file picker...',
+    ImportStatus.parsing => 'Reading spreadsheet...',
+    ImportStatus.importing => 'Adding students...',
+    _ => '',
+  };
 
   Future<void> _downloadTemplate(
     BuildContext context,
@@ -214,53 +214,62 @@ class _PreviewViewState extends State<_PreviewView>
             children: [
               _StudentList(
                 students: preview.newStudents
-                    .map((draft) => _StudentRow(
-                          rowNumber: draft.rowNumber,
-                          rollNo: draft.rollNo,
-                          name: draft.name,
-                          institution: draft.institution,
-                          boardingPoint: draft.boardingPoint,
-                        ))
+                    .map(
+                      (draft) => _StudentRow(
+                        rowNumber: draft.rowNumber,
+                        rollNo: draft.rollNo,
+                        name: draft.name,
+                        institution: draft.institution,
+                        boardingPoint: draft.boardingPoint,
+                      ),
+                    )
                     .toList(),
                 emptyMessage: 'No new students in this file.',
               ),
               _StudentList(
                 students: preview.existing
-                    .map((match) => _StudentRow(
-                          rowNumber: match.rowNumber,
-                          rollNo: match.rollNo,
-                          name: match.name,
-                          institution: match.institution,
-                          boardingPoint: match.boardingPoint,
-                          note: 'Already in OnBoard — will not be changed',
-                        ))
+                    .map(
+                      (match) => _StudentRow(
+                        rowNumber: match.rowNumber,
+                        rollNo: match.rollNo,
+                        name: match.name,
+                        institution: match.institution,
+                        boardingPoint: match.boardingPoint,
+                        note: 'Already in OnBoard — will not be changed',
+                      ),
+                    )
                     .toList(),
-                emptyMessage: 'No students already exist with these roll numbers.',
+                emptyMessage:
+                    'No students already exist with these roll numbers.',
               ),
               _StudentList(
                 students: preview.duplicates
-                    .map((match) => _StudentRow(
-                          rowNumber: match.rowNumber,
-                          rollNo: match.rollNo,
-                          name: match.name,
-                          institution: match.institution,
-                          boardingPoint: match.boardingPoint,
-                          note: 'Same roll no as row ${match.firstRowNumber}',
-                        ))
+                    .map(
+                      (match) => _StudentRow(
+                        rowNumber: match.rowNumber,
+                        rollNo: match.rollNo,
+                        name: match.name,
+                        institution: match.institution,
+                        boardingPoint: match.boardingPoint,
+                        note: 'Same roll no as row ${match.firstRowNumber}',
+                      ),
+                    )
                     .toList(),
                 emptyMessage: 'No repeated roll numbers in this file.',
               ),
               _StudentList(
                 students: preview.invalid
-                    .map((match) => _StudentRow(
-                          rowNumber: match.rowNumber,
-                          rollNo: match.rollNo,
-                          name: match.name,
-                          institution: match.institution,
-                          boardingPoint: match.boardingPoint,
-                          note: match.reason,
-                          isProblem: true,
-                        ))
+                    .map(
+                      (match) => _StudentRow(
+                        rowNumber: match.rowNumber,
+                        rollNo: match.rollNo,
+                        name: match.name,
+                        institution: match.institution,
+                        boardingPoint: match.boardingPoint,
+                        note: match.reason,
+                        isProblem: true,
+                      ),
+                    )
                     .toList(),
                 emptyMessage: 'Every row passed validation.',
               ),
@@ -298,8 +307,9 @@ class _SourceCard extends StatelessWidget {
                   child: Text(
                     preview.fileName,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -316,12 +326,16 @@ class _SourceCard extends StatelessWidget {
               children: [
                 for (final field in ImportField.values)
                   Chip(
-                    label: Text('${field.label}: ${preview.detectedColumns[field]}'),
+                    label: Text(
+                      '${field.label}: ${preview.detectedColumns[field]}',
+                    ),
                     visualDensity: VisualDensity.compact,
                   ),
                 for (final ignored in preview.ignoredColumns)
                   Chip(
-                    label: Text('${ignored.letter}: ${ignored.columnLabel} (ignored)'),
+                    label: Text(
+                      '${ignored.letter}: ${ignored.columnLabel} (ignored)',
+                    ),
                     visualDensity: VisualDensity.compact,
                     backgroundColor: theme.colorScheme.surfaceContainerHighest,
                   ),
@@ -433,14 +447,16 @@ class _StudentList extends StatelessWidget {
                   children: [
                     Text(
                       student.rollNo.isEmpty ? '(no roll no)' : student.rollNo,
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w600),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const Spacer(),
                     Text(
                       'Row ${student.rowNumber}',
-                      style: theme.textTheme.labelSmall
-                          ?.copyWith(color: Colors.grey.shade600),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                   ],
                 ),
@@ -449,10 +465,7 @@ class _StudentList extends StatelessWidget {
                   Text(student.name, style: theme.textTheme.bodyLarge),
                 ],
                 if (student.institution.isNotEmpty)
-                  Text(
-                    student.institution,
-                    style: theme.textTheme.bodyMedium,
-                  ),
+                  Text(student.institution, style: theme.textTheme.bodyMedium),
                 if (student.boardingPoint.isNotEmpty)
                   Text(
                     student.boardingPoint,
@@ -516,7 +529,7 @@ class _ConfirmBar extends StatelessWidget {
             Text(
               preview.canImport
                   ? 'Add ${preview.newStudents.length} new '
-                      '${preview.newStudents.length == 1 ? 'student' : 'students'}?'
+                        '${preview.newStudents.length == 1 ? 'student' : 'students'}?'
                   : 'Nothing new to add',
               style: theme.textTheme.titleSmall,
             ),
@@ -681,8 +694,9 @@ class _ResultTile extends StatelessWidget {
         title: Text(label),
         trailing: Text(
           '$value',
-          style: theme.textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w600),
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );

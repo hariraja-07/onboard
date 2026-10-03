@@ -29,9 +29,33 @@ class ExcelTemplateService {
 
   /// Example rows showing the shape of each column.
   static const List<List<String>> sampleRows = [
-    ['1', 'B-1', '2026001', 'Asha Rao', 'Green Valley School', 'I', 'North Gate'],
-    ['2', 'B-1', '2026002', 'Bilal Khan', 'Green Valley School', 'I', 'South Gate'],
-    ['3', 'B-2', '2026003', 'Chitra Menon', 'Riverside Public School', 'II', 'East Gate'],
+    [
+      '1',
+      'B-1',
+      '2026001',
+      'Asha Rao',
+      'Green Valley School',
+      'I',
+      'North Gate',
+    ],
+    [
+      '2',
+      'B-1',
+      '2026002',
+      'Bilal Khan',
+      'Green Valley School',
+      'I',
+      'South Gate',
+    ],
+    [
+      '3',
+      'B-2',
+      '2026003',
+      'Chitra Menon',
+      'Riverside Public School',
+      'II',
+      'East Gate',
+    ],
   ];
 
   /// Encodes the template, ready to hand to a save dialog.
@@ -62,9 +86,7 @@ class ExcelTemplateService {
       );
     }
 
-    final bodyStyle = CellStyle(
-      verticalAlign: VerticalAlign.Center,
-    );
+    final bodyStyle = CellStyle(verticalAlign: VerticalAlign.Center);
 
     for (var row = 0; row < sampleRows.length; row++) {
       final values = sampleRows[row];

@@ -30,21 +30,25 @@ class BarcodeMatchResult {
   const BarcodeMatchResult.matched({
     required String barcode,
     required Student student,
-  }) : this(barcode: barcode, status: BarcodeMatchStatus.matched, student: student);
+  }) : this(
+         barcode: barcode,
+         status: BarcodeMatchStatus.matched,
+         student: student,
+       );
 
   /// A barcode containing no registered roll number.
   const BarcodeMatchResult.notFound({required String barcode})
-      : this(barcode: barcode, status: BarcodeMatchStatus.notFound);
+    : this(barcode: barcode, status: BarcodeMatchStatus.notFound);
 
   /// A barcode containing more than one registered roll number.
   const BarcodeMatchResult.ambiguous({
     required String barcode,
     required List<Student> candidates,
   }) : this(
-          barcode: barcode,
-          status: BarcodeMatchStatus.ambiguous,
-          candidates: candidates,
-        );
+         barcode: barcode,
+         status: BarcodeMatchStatus.ambiguous,
+         candidates: candidates,
+       );
 
   /// The scanned value, unmodified.
   final String barcode;

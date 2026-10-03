@@ -176,8 +176,7 @@ class ExcelImportService {
       }
 
       final rows = sheet.rows;
-      final limit =
-          rows.length < headerScanRows ? rows.length : headerScanRows;
+      final limit = rows.length < headerScanRows ? rows.length : headerScanRows;
 
       for (var rowIndex = 0; rowIndex < limit; rowIndex++) {
         final columns = _matchColumns(rows[rowIndex]);
@@ -209,9 +208,7 @@ class ExcelImportService {
   Map<ImportField, int> _matchColumns(List<Data?> headerRow) {
     final columns = <ImportField, int>{};
 
-    for (var columnIndex = 0;
-        columnIndex < headerRow.length;
-        columnIndex++) {
+    for (var columnIndex = 0; columnIndex < headerRow.length; columnIndex++) {
       final raw = _cellToString(headerRow[columnIndex]);
       if (raw.isEmpty) continue;
 
@@ -254,17 +251,12 @@ class ExcelImportService {
 
     final ignored = <IgnoredColumn>[];
     final used = columns.values.toSet();
-    for (var columnIndex = 0;
-        columnIndex < headerRow.length;
-        columnIndex++) {
+    for (var columnIndex = 0; columnIndex < headerRow.length; columnIndex++) {
       if (used.contains(columnIndex)) continue;
       final label = _cellToString(headerRow[columnIndex]);
       if (label.isEmpty) continue;
       ignored.add(
-        IgnoredColumn(
-          columnLabel: label,
-          letter: _columnLetter(columnIndex),
-        ),
+        IgnoredColumn(columnLabel: label, letter: _columnLetter(columnIndex)),
       );
     }
 
@@ -280,7 +272,11 @@ class ExcelImportService {
     var totalDataRows = 0;
     var skippedEmptyRows = 0;
 
-    for (var rowIndex = located.rowIndex + 1; rowIndex < rows.length; rowIndex++) {
+    for (
+      var rowIndex = located.rowIndex + 1;
+      rowIndex < rows.length;
+      rowIndex++
+    ) {
       final row = rows[rowIndex];
       final excelRowNumber = rowIndex + 1;
 
@@ -311,9 +307,7 @@ class ExcelImportService {
         if (value.isEmpty) {
           reasons.add('${field.label} is missing');
         } else if (value.length > field.maxLength) {
-          reasons.add(
-            '${field.label} is too long (max ${field.maxLength})',
-          );
+          reasons.add('${field.label} is too long (max ${field.maxLength})');
         }
       }
 
@@ -400,8 +394,7 @@ class ExcelImportService {
 
     for (final sheet in tables.values) {
       final rows = sheet.rows;
-      final limit =
-          rows.length < headerScanRows ? rows.length : headerScanRows;
+      final limit = rows.length < headerScanRows ? rows.length : headerScanRows;
       for (var rowIndex = 0; rowIndex < limit; rowIndex++) {
         for (final cell in rows[rowIndex]) {
           final label = _cellToString(cell);
@@ -411,9 +404,7 @@ class ExcelImportService {
     }
 
     final buffer = StringBuffer('Could not find the required columns');
-    buffer.write(
-      ' (${ImportField.values.map((f) => f.label).join(', ')}) ',
-    );
+    buffer.write(' (${ImportField.values.map((f) => f.label).join(', ')}) ');
     buffer.write('in this workbook.');
 
     if (seen.isNotEmpty) {

@@ -25,12 +25,14 @@ class AttendanceResultBanner extends StatelessWidget {
     final student = state.lastStudent;
     final line1 = outcome.label;
     final line2 = switch (outcome) {
-      AttendanceScanOutcome.marked => student != null
-          ? (student.name.isNotEmpty ? student.name : student.rollNo)
-          : null,
-      AttendanceScanOutcome.alreadyPresent => student != null
-          ? (student.name.isNotEmpty ? student.name : student.rollNo)
-          : null,
+      AttendanceScanOutcome.marked =>
+        student != null
+            ? (student.name.isNotEmpty ? student.name : student.rollNo)
+            : null,
+      AttendanceScanOutcome.alreadyPresent =>
+        student != null
+            ? (student.name.isNotEmpty ? student.name : student.rollNo)
+            : null,
       AttendanceScanOutcome.notFound => state.lastBarcode ?? '',
       AttendanceScanOutcome.ambiguous => state.lastBarcode ?? '',
     };
@@ -49,7 +51,9 @@ class AttendanceResultBanner extends StatelessWidget {
                 children: [
                   Text(
                     line1,
-                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   if (line2 != null && line2.isNotEmpty)
                     Text(

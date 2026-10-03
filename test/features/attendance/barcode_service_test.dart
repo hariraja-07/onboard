@@ -6,20 +6,20 @@ import 'package:onboard/features/attendance/barcode/barcode_service.dart';
 /// Builds a roster entry. Roll numbers are the only field the matcher reads, so
 /// the rest is filled with plausible but arbitrary values.
 Student student(String rollNo, {String? name}) => Student(
-      id: rollNo.hashCode,
-      rollNo: rollNo,
-      name: name ?? 'Student $rollNo',
-      institution: 'Springfield College',
-      boardingPoint: 'North Gate',
-      createdAt: DateTime.utc(2026, 1, 1),
-    );
+  id: rollNo.hashCode,
+  rollNo: rollNo,
+  name: name ?? 'Student $rollNo',
+  institution: 'Springfield College',
+  boardingPoint: 'North Gate',
+  createdAt: DateTime.utc(2026, 1, 1),
+);
 
 /// The roster described in the feature request.
 List<Student> roster() => [
-      student('24BMR016', name: 'Asha Rao'),
-      student('25BMR017', name: 'Bilal Khan'),
-      student('23BMR015', name: 'Chitra Devi'),
-    ];
+  student('24BMR016', name: 'Asha Rao'),
+  student('25BMR017', name: 'Bilal Khan'),
+  student('23BMR015', name: 'Chitra Devi'),
+];
 
 void main() {
   const service = BarcodeService();
@@ -131,12 +131,14 @@ void main() {
       expect(service.match('    ', students).isNotFound, isTrue);
     });
 
-    test('reports not found when the barcode is shorter than every roll number',
-        () {
-      final result = service.match('7329', students);
+    test(
+      'reports not found when the barcode is shorter than every roll number',
+      () {
+        final result = service.match('7329', students);
 
-      expect(result.isNotFound, isTrue);
-    });
+        expect(result.isNotFound, isTrue);
+      },
+    );
 
     test('a blank roll number does not make every barcode ambiguous', () {
       final result = service.match('732924BMR016', [
@@ -176,16 +178,19 @@ void main() {
       expect(result.candidates, hasLength(3));
     });
 
-    test('a single candidate among several non-matching students is matched', () {
-      final result = service.match('732924BMR016', [
-        student('99ZZZ001'),
-        student('24BMR016'),
-        student('88QQQ002'),
-      ]);
+    test(
+      'a single candidate among several non-matching students is matched',
+      () {
+        final result = service.match('732924BMR016', [
+          student('99ZZZ001'),
+          student('24BMR016'),
+          student('88QQQ002'),
+        ]);
 
-      expect(result.isMatched, isTrue);
-      expect(result.student?.rollNo, '24BMR016');
-    });
+        expect(result.isMatched, isTrue);
+        expect(result.student?.rollNo, '24BMR016');
+      },
+    );
   });
 
   group('the original scanned value is preserved', () {

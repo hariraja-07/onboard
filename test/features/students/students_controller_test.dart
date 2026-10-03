@@ -1,6 +1,8 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onboard/core/database/database.dart';
+import 'package:onboard/core/database/repositories/attendance_record_repository.dart';
+import 'package:onboard/core/database/repositories/attendance_session_repository.dart';
 import 'package:onboard/core/database/repositories/student_repository.dart';
 import 'package:onboard/features/students/students_controller.dart';
 
@@ -85,12 +87,14 @@ void main() {
       );
 
       expect(
-        populated.copyWith(institutionFilter: null, boardingPointFilter: null)
+        populated
+            .copyWith(institutionFilter: null, boardingPointFilter: null)
             .institutionFilter,
         isNull,
       );
       expect(
-        populated.copyWith(institutionFilter: null, boardingPointFilter: null)
+        populated
+            .copyWith(institutionFilter: null, boardingPointFilter: null)
             .boardingPointFilter,
         isNull,
       );
@@ -131,9 +135,11 @@ void main() {
       expect(notifier.state.students, hasLength(3));
     });
 
-    test('a failing add still reports the error', () async {
+    test('a failing add reports an action error and keeps the list', () async {
       // The roll number is UNIQUE, so re-adding one must fail loudly rather
-      // than silently doing nothing.
+      // than silently doing nothing. The failure is reported as an action
+      // error so the roster itself stays on screen.
+      await loadSuccessfully();
       final added = await notifier.addStudent(
         rollNo: '24BMR016',
         name: 'Duplicate',
@@ -142,7 +148,9 @@ void main() {
       );
 
       expect(added, isFalse);
-      expect(notifier.state.error, isNotNull);
+      expect(notifier.state.actionError, isNotNull);
+      expect(notifier.state.error, isNull);
+      expect(notifier.state.students, hasLength(2));
     });
 
     test('a later successful delete clears the error', () async {
@@ -153,6 +161,33 @@ void main() {
       await loadSuccessfully();
 
       expect(notifier.state.error, isNull);
+    });
+  });
+
+  group('deleting a student', () {
+    test('also removes their attendance records', () async {
+      final sessions = AttendanceSessionRepository(db);
+      final records = AttendanceRecordRepository(db);
+      final all = await repository.getAll();
+      final asha = all.firstWhere((s) => s.rollNo == '24BMR016');
+      final sessionId = await sessions.createOpen(
+        attendanceDate: DateTime(2026, 10, 3),
+        createdAt: DateTime(2026, 10, 3, 8),
+      );
+      await records.markPresent(
+        sessionId: sessionId,
+        student: asha,
+        rawBarcode: '24BMR016',
+        scannedAt: DateTime(2026, 10, 3, 9),
+      );
+      await loadSuccessfully();
+
+      final deleted = await notifier.deleteStudent(asha.id);
+
+      expect(deleted, isTrue);
+      expect(await records.forSession(sessionId), isEmpty);
+      expect(notifier.state.students, hasLength(1));
+      expect(notifier.state.actionMessage, 'Student deleted.');
     });
   });
 

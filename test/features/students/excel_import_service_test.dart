@@ -45,7 +45,8 @@ const _standardHeader = [
 
 /// A visually blank row. Note that `appendRow([])` inserts nothing at all, so
 /// a blank row has to be spelled out with null cells to exist in the sheet.
-List<dynamic> get _blankRow => List<dynamic>.filled(_standardHeader.length, null);
+List<dynamic> get _blankRow =>
+    List<dynamic>.filled(_standardHeader.length, null);
 
 void main() {
   const service = ExcelImportService();
@@ -57,7 +58,11 @@ void main() {
     String? defaultSheetName,
   }) {
     return service.parse(
-      buildWorkbook(rows, sheetName: sheetName, defaultSheetName: defaultSheetName),
+      buildWorkbook(
+        rows,
+        sheetName: sheetName,
+        defaultSheetName: defaultSheetName,
+      ),
       fileName: 'roster.xlsx',
       existingRollNos: existing,
     );
@@ -85,7 +90,9 @@ void main() {
         containsAll(['S.NO.', 'BUS NO.', 'STAGE']),
       );
       expect(
-        preview.ignoredColumns.firstWhere((c) => c.columnLabel == 'S.NO.').letter,
+        preview.ignoredColumns
+            .firstWhere((c) => c.columnLabel == 'S.NO.')
+            .letter,
         'A',
       );
 
@@ -97,7 +104,15 @@ void main() {
 
     test('tolerates case, punctuation and spacing in header names', () {
       final preview = parse([
-        ['  s.no. ', 'bus no.', 'roll_no', 'FULL  NAME', 'Institution.', 'stage', 'Boarding-Point'],
+        [
+          '  s.no. ',
+          'bus no.',
+          'roll_no',
+          'FULL  NAME',
+          'Institution.',
+          'stage',
+          'Boarding-Point',
+        ],
         ['1', 'B-1', '101', 'Asha Rao', 'Green Valley', 'I', 'North Gate'],
       ]);
 
@@ -112,7 +127,15 @@ void main() {
 
     test('accepts alternative header spellings', () {
       final preview = parse([
-        ['Serial No', 'Bus Number', 'Registration No', 'Student Name', 'School', 'Stage', 'Pickup Point'],
+        [
+          'Serial No',
+          'Bus Number',
+          'Registration No',
+          'Student Name',
+          'School',
+          'Stage',
+          'Pickup Point',
+        ],
         ['1', 'B-1', '101', 'Asha Rao', 'Green Valley', 'I', 'North Gate'],
       ]);
 
@@ -231,7 +254,15 @@ void main() {
     test('collapses messy whitespace inside values', () {
       final preview = parse([
         _standardHeader,
-        ['1', 'B-1', '  101  ', '  Asha   Rao ', 'Green   Valley', 'I', 'North Gate'],
+        [
+          '1',
+          'B-1',
+          '  101  ',
+          '  Asha   Rao ',
+          'Green   Valley',
+          'I',
+          'North Gate',
+        ],
       ]);
 
       final student = preview.newStudents.single;
@@ -252,12 +283,14 @@ void main() {
     test('turns a numeric roll number into text without a decimal tail', () {
       final excel = Excel.createExcel();
       final sheet = excel['Sheet1'];
-      sheet.appendRow([
-        'ROLL NO',
-        'NAME',
-        'INSTITUTION',
-        'BORDING POINT',
-      ].map(TextCellValue.new).toList());
+      sheet.appendRow(
+        [
+          'ROLL NO',
+          'NAME',
+          'INSTITUTION',
+          'BORDING POINT',
+        ].map(TextCellValue.new).toList(),
+      );
       sheet.appendRow([
         IntCellValue(101),
         TextCellValue('Asha Rao'),
@@ -277,10 +310,7 @@ void main() {
         existingRollNos: const {},
       );
 
-      expect(
-        preview.newStudents.map((s) => s.rollNo),
-        ['101', '102'],
-      );
+      expect(preview.newStudents.map((s) => s.rollNo), ['101', '102']);
     });
 
     test('treats a formula cell with no usable result as blank', () {
@@ -290,12 +320,14 @@ void main() {
       // as a roll number would be worse than reporting a missing value.
       final excel = Excel.createExcel();
       final sheet = excel['Sheet1'];
-      sheet.appendRow([
-        'ROLL NO',
-        'NAME',
-        'INSTITUTION',
-        'BORDING POINT',
-      ].map(TextCellValue.new).toList());
+      sheet.appendRow(
+        [
+          'ROLL NO',
+          'NAME',
+          'INSTITUTION',
+          'BORDING POINT',
+        ].map(TextCellValue.new).toList(),
+      );
       sheet.appendRow([
         FormulaCellValue('UPPER(A1)'),
         TextCellValue('Asha Rao'),
@@ -323,7 +355,10 @@ void main() {
 
       expect(preview.newStudents, isEmpty);
       expect(preview.invalid, hasLength(2));
-      expect(preview.invalid[0].reason, contains('Roll No is too long (max 50)'));
+      expect(
+        preview.invalid[0].reason,
+        contains('Roll No is too long (max 50)'),
+      );
       expect(preview.invalid[1].reason, contains('Name is too long (max 100)'));
     });
   });
@@ -375,29 +410,29 @@ void main() {
 
     test('does not touch the existing roll number set while parsing', () {
       final existing = <String>{'101'};
-      parse(
-        [
-          _standardHeader,
-          ['1', 'B-1', '101', 'Asha Rao', 'Green Valley', 'I', 'North Gate'],
-          ['2', 'B-1', '999', 'Bilal Khan', 'Green Valley', 'I', 'South Gate'],
-        ],
-        existing: existing,
-      );
+      parse([
+        _standardHeader,
+        ['1', 'B-1', '101', 'Asha Rao', 'Green Valley', 'I', 'North Gate'],
+        ['2', 'B-1', '999', 'Bilal Khan', 'Green Valley', 'I', 'South Gate'],
+      ], existing: existing);
 
       expect(existing, {'101'});
     });
 
-    test('an invalid row does not block a later valid row with the same roll no', () {
-      final preview = parse([
-        _standardHeader,
-        ['1', 'B-1', '101', '', 'Green Valley', 'I', 'North Gate'],
-        ['2', 'B-1', '101', 'Asha Rao', 'Green Valley', 'I', 'North Gate'],
-      ]);
+    test(
+      'an invalid row does not block a later valid row with the same roll no',
+      () {
+        final preview = parse([
+          _standardHeader,
+          ['1', 'B-1', '101', '', 'Green Valley', 'I', 'North Gate'],
+          ['2', 'B-1', '101', 'Asha Rao', 'Green Valley', 'I', 'North Gate'],
+        ]);
 
-      expect(preview.invalid, hasLength(1));
-      expect(preview.duplicates, isEmpty);
-      expect(preview.newStudents.single.name, 'Asha Rao');
-    });
+        expect(preview.invalid, hasLength(1));
+        expect(preview.duplicates, isEmpty);
+        expect(preview.newStudents.single.name, 'Asha Rao');
+      },
+    );
 
     test('canImport is false when there is nothing new to add', () {
       final preview = parse(
@@ -462,7 +497,10 @@ void main() {
     });
 
     test('normaliseValue collapses whitespace including zero-width spaces', () {
-      expect(ExcelImportService.normaliseValue('  Asha \t\n Rao  '), 'Asha Rao');
+      expect(
+        ExcelImportService.normaliseValue('  Asha \t\n Rao  '),
+        'Asha Rao',
+      );
       expect(ExcelImportService.normaliseValue('Asha Rao'), 'Asha Rao');
     });
   });

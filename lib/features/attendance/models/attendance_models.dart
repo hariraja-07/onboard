@@ -239,5 +239,3 @@ class AttendanceSessionDetails {
 }
 
 enum AttendanceFilter { present, absent, all }
-
-enum AttendanceSessionSummaryStatus { open, completed }

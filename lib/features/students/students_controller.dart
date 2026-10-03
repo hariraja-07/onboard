@@ -4,14 +4,18 @@ import '../../core/database/database.dart';
 import '../../core/database/providers.dart';
 import '../../core/database/repositories/student_repository.dart';
 
-final studentsProvider = StateNotifierProvider<StudentsNotifier, StudentsState>((ref) {
-  return StudentsNotifier(ref.watch(studentRepositoryProvider));
-});
+final studentsProvider = StateNotifierProvider<StudentsNotifier, StudentsState>(
+  (ref) {
+    return StudentsNotifier(ref.watch(studentRepositoryProvider));
+  },
+);
 
 class StudentsState {
   final List<Student> students;
   final bool isLoading;
   final String? error;
+  final String? actionMessage;
+  final String? actionError;
   final String searchQuery;
   final String? institutionFilter;
   final String? boardingPointFilter;
@@ -20,6 +24,8 @@ class StudentsState {
     this.students = const [],
     this.isLoading = false,
     this.error,
+    this.actionMessage,
+    this.actionError,
     this.searchQuery = '',
     this.institutionFilter,
     this.boardingPointFilter,
@@ -39,6 +45,8 @@ class StudentsState {
     List<Student>? students,
     bool? isLoading,
     Object? error = _unset,
+    Object? actionMessage = _unset,
+    Object? actionError = _unset,
     String? searchQuery,
     Object? institutionFilter = _unset,
     Object? boardingPointFilter = _unset,
@@ -47,6 +55,12 @@ class StudentsState {
       students: students ?? this.students,
       isLoading: isLoading ?? this.isLoading,
       error: identical(error, _unset) ? this.error : error as String?,
+      actionMessage: identical(actionMessage, _unset)
+          ? this.actionMessage
+          : actionMessage as String?,
+      actionError: identical(actionError, _unset)
+          ? this.actionError
+          : actionError as String?,
       searchQuery: searchQuery ?? this.searchQuery,
       institutionFilter: identical(institutionFilter, _unset)
           ? this.institutionFilter
@@ -61,18 +75,23 @@ class StudentsState {
     var result = students;
     if (searchQuery.isNotEmpty) {
       final query = searchQuery.toLowerCase();
-      result = result.where((s) =>
-        s.rollNo.toLowerCase().contains(query) ||
-        s.name.toLowerCase().contains(query) ||
-        s.institution.toLowerCase().contains(query) ||
-        s.boardingPoint.toLowerCase().contains(query),
-      ).toList();
+      result = result
+          .where(
+            (s) =>
+                s.rollNo.toLowerCase().contains(query) ||
+                s.name.toLowerCase().contains(query) ||
+                s.institution.toLowerCase().contains(query) ||
+                s.boardingPoint.toLowerCase().contains(query),
+          )
+          .toList();
     }
     if (institutionFilter != null && institutionFilter!.isNotEmpty) {
       result = result.where((s) => s.institution == institutionFilter).toList();
     }
     if (boardingPointFilter != null && boardingPointFilter!.isNotEmpty) {
-      result = result.where((s) => s.boardingPoint == boardingPointFilter).toList();
+      result = result
+          .where((s) => s.boardingPoint == boardingPointFilter)
+          .toList();
     }
     return result;
   }
@@ -103,6 +122,24 @@ class StudentsNotifier extends StateNotifier<StudentsState> {
 
   StudentsNotifier(this._repository) : super(StudentsState());
 
+  static final RegExp _whitespace = RegExp(r'\s+');
+
+  /// Roll numbers are the identity key, so they are trimmed, whitespace
+  /// collapsed and upper-cased. This mirrors
+  /// [ExcelImportService.normaliseRollNo] so a student added by hand and the
+  /// same student imported from a sheet cannot end up stored differently.
+  String _normaliseRollNo(String raw) =>
+      raw.replaceAll(_whitespace, ' ').trim().toUpperCase();
+
+  /// Turns a repository failure into wording an operator can act on.
+  String _friendlyError(Object error) {
+    final text = error.toString();
+    if (text.contains('UNIQUE')) {
+      return 'A student with this roll number already exists.';
+    }
+    return 'Something went wrong. Please try again.';
+  }
+
   Future<void> loadStudents() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -119,24 +156,28 @@ class StudentsNotifier extends StateNotifier<StudentsState> {
     required String institution,
     required String boardingPoint,
   }) async {
-    final normalizedRollNo = rollNo.trim().toUpperCase();
     try {
       await _repository.insert(
-        rollNo: normalizedRollNo,
+        rollNo: _normaliseRollNo(rollNo),
         name: name.trim(),
         institution: institution.trim(),
         boardingPoint: boardingPoint.trim(),
       );
       await loadStudents();
+      state = state.copyWith(
+        actionMessage: 'Student added.',
+        actionError: null,
+      );
       return true;
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(actionError: _friendlyError(e));
       return false;
     }
   }
 
   Future<bool> editStudent({
     required int id,
+    String? rollNo,
     required String name,
     required String institution,
     required String boardingPoint,
@@ -144,25 +185,41 @@ class StudentsNotifier extends StateNotifier<StudentsState> {
     try {
       await _repository.update(
         id: id,
+        rollNo: rollNo == null ? null : _normaliseRollNo(rollNo),
         name: name.trim(),
         institution: institution.trim(),
         boardingPoint: boardingPoint.trim(),
       );
       await loadStudents();
+      state = state.copyWith(
+        actionMessage: 'Student updated.',
+        actionError: null,
+      );
       return true;
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(actionError: _friendlyError(e));
       return false;
     }
   }
 
-  Future<void> deleteStudent(int id) async {
+  Future<bool> deleteStudent(int id) async {
     try {
       await _repository.delete(id);
       await loadStudents();
+      state = state.copyWith(
+        actionMessage: 'Student deleted.',
+        actionError: null,
+      );
+      return true;
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(actionError: _friendlyError(e));
+      return false;
     }
+  }
+
+  /// Clears a pending success or failure banner once it has been shown.
+  void clearActionFeedback() {
+    state = state.copyWith(actionMessage: null, actionError: null);
   }
 
   void setSearchQuery(String query) {

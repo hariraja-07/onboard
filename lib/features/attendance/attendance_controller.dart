@@ -54,6 +54,7 @@ class AttendanceState {
     this.lastStudent,
     this.error,
     this.isMarking = false,
+    this.isSessionBusy = false,
   });
 
   final AttendancePhase phase;
@@ -84,6 +85,13 @@ class AttendanceState {
 
   /// True while a mark is being written, so the UI can avoid a second submit.
   final bool isMarking;
+
+  /// True while a session is starting, resuming or finishing.
+  ///
+  /// Separate from [isMarking] because scans also set that flag briefly; the
+  /// session buttons must stay enabled during a normal scan and only disable
+  /// for the action they triggered.
+  final bool isSessionBusy;
 
   /// True when a scan would do something.
   bool get isActive => phase == AttendancePhase.active;
@@ -134,6 +142,7 @@ class AttendanceState {
     Object? lastStudent = _unset,
     Object? error = _unset,
     bool? isMarking,
+    bool? isSessionBusy,
   }) {
     return AttendanceState(
       phase: phase ?? this.phase,
@@ -161,6 +170,7 @@ class AttendanceState {
           : lastStudent as Student?,
       error: identical(error, _unset) ? this.error : error as String?,
       isMarking: isMarking ?? this.isMarking,
+      isSessionBusy: isSessionBusy ?? this.isSessionBusy,
     );
   }
 
@@ -207,6 +217,10 @@ class AttendanceController extends StateNotifier<AttendanceState> {
   String? _lastScannedBarcode;
   DateTime? _lastScanAt;
 
+  /// Serializes scans so a barcode presented while an earlier one is still
+  /// being written waits its turn instead of being dropped.
+  Future<void> _scanQueue = Future.value();
+
   /// Finds today's open session and loads the roster.
   ///
   /// Leaves the controller at [AttendancePhase.awaitingStart] either way, so a
@@ -219,11 +233,13 @@ class AttendanceController extends StateNotifier<AttendanceState> {
       error: null,
     );
     try {
-      final open = await _sessions.findOpenForDate(date);
+      // Any open session counts, not just today's, so one left open across
+      // midnight is surfaced instead of becoming permanently stuck.
+      final open = await _sessions.findAnyOpen();
       final roster = await _buildRoster();
       state = state.copyWith(
         phase: AttendancePhase.awaitingStart,
-        attendanceDate: date,
+        attendanceDate: open?.attendanceDate ?? date,
         resumableSessionId: open?.id,
         roster: roster,
       );
@@ -237,11 +253,12 @@ class AttendanceController extends StateNotifier<AttendanceState> {
 
   /// Begins a new session for the loaded date.
   Future<void> startSession() async {
+    if (state.isMarking) return;
     final date = state.attendanceDate ?? _clock();
-    state = state.copyWith(isMarking: true, error: null);
+    state = state.copyWith(isMarking: true, isSessionBusy: true, error: null);
     try {
       final now = _clock();
-      final id = await _sessions.createOpen(
+      final id = await _sessions.findOrCreateOpen(
         attendanceDate: date,
         createdAt: now,
       );
@@ -256,11 +273,12 @@ class AttendanceController extends StateNotifier<AttendanceState> {
         sessionId: id,
         // A newly started session supersedes any open one found earlier.
         resumableSessionId: null,
-        isMarking: false,
       );
       await _captureRoster(id);
       state = state.copyWith(
         roster: await _buildRoster(),
+        isMarking: false,
+        isSessionBusy: false,
         lastOutcome: null,
         lastBarcode: null,
         lastRecord: null,
@@ -269,6 +287,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     } catch (error) {
       state = state.copyWith(
         isMarking: false,
+        isSessionBusy: false,
         error: 'Could not start the session.\n$error',
       );
     }
@@ -276,25 +295,24 @@ class AttendanceController extends StateNotifier<AttendanceState> {
 
   /// Picks up the open session found by [load].
   Future<void> resumeSession() async {
+    if (state.isMarking) return;
     final id = state.resumableSessionId;
     if (id == null) {
       state = state.copyWith(error: 'There is no session to resume.');
       return;
     }
-    state = state.copyWith(isMarking: true, error: null);
+    state = state.copyWith(isMarking: true, isSessionBusy: true, error: null);
     try {
       _resetScanCooldown();
       // As in startSession: publish the id before building the roster, which
       // reads records for that session. Marks made before the interruption have
       // to come back as present.
-      state = state.copyWith(
-        phase: AttendancePhase.active,
-        sessionId: id,
-        isMarking: false,
-      );
+      state = state.copyWith(phase: AttendancePhase.active, sessionId: id);
       await _captureRoster(id);
       state = state.copyWith(
         roster: await _buildRoster(),
+        isMarking: false,
+        isSessionBusy: false,
         lastOutcome: null,
         lastBarcode: null,
         lastRecord: null,
@@ -303,6 +321,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     } catch (error) {
       state = state.copyWith(
         isMarking: false,
+        isSessionBusy: false,
         error: 'Could not resume the session.\n$error',
       );
     }
@@ -310,17 +329,28 @@ class AttendanceController extends StateNotifier<AttendanceState> {
 
   /// Completes the session. It will not accept further scans afterwards.
   Future<void> finishSession() async {
+    if (state.isMarking) return;
     final id = state.sessionId;
     if (id == null) return;
+    state = state.copyWith(isMarking: true, isSessionBusy: true, error: null);
     try {
+      // Capture again so students added while the session was open join the
+      // frozen roster. insertRoster is insert-or-ignore, so rows already
+      // snapshotted keep their original values and history stays immutable.
+      await _captureRoster(id);
       await _sessions.complete(id);
       state = state.copyWith(
         phase: AttendancePhase.finished,
         sessionId: null,
         isMarking: false,
+        isSessionBusy: false,
       );
     } catch (error) {
-      state = state.copyWith(error: 'Could not finish the session.\n$error');
+      state = state.copyWith(
+        isMarking: false,
+        isSessionBusy: false,
+        error: 'Could not finish the session.\n$error',
+      );
     }
   }
 
@@ -330,22 +360,31 @@ class AttendanceController extends StateNotifier<AttendanceState> {
   /// front of the lens does not rewrite the result several times a second.
   ///
   /// Returns the mark in progress so a caller can await the write.
-  Future<void> onBarcodeScanned(String rawBarcode) async {
+  Future<void> onBarcodeScanned(String rawBarcode) {
     final now = _clock();
     final previousAt = _lastScanAt;
     if (rawBarcode == _lastScannedBarcode &&
         previousAt != null &&
         now.difference(previousAt) < _scanCooldown) {
-      return;
+      return Future.value();
     }
     _lastScannedBarcode = rawBarcode;
     _lastScanAt = now;
-    await scan(rawBarcode);
+    return _enqueueScan(rawBarcode);
   }
 
   /// Matches a barcode typed in by hand. Never rate limited, so the same value
   /// can be retried.
-  Future<void> submitBarcode(String rawBarcode) => scan(rawBarcode);
+  Future<void> submitBarcode(String rawBarcode) => _enqueueScan(rawBarcode);
+
+  /// Runs scans one after another. A scan arriving while another is being
+  /// written is queued instead of dropped, so two cards presented in quick
+  /// succession are both recorded.
+  Future<void> _enqueueScan(String rawBarcode) {
+    final next = _scanQueue.then((_) => scan(rawBarcode));
+    _scanQueue = next;
+    return next;
+  }
 
   /// The one path every scan takes, whatever its source.
   ///

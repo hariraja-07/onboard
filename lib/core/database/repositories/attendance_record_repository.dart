@@ -8,10 +8,12 @@ class AttendanceRecordRepository {
 
   AttendanceRecordRepository(this.db);
 
-  Future<List<AttendanceRecord>> getAll() => db.select(db.attendanceRecords).get();
+  Future<List<AttendanceRecord>> getAll() =>
+      db.select(db.attendanceRecords).get();
 
-  Future<List<AttendanceRecord>> forSession(int sessionId) =>
-      (db.select(db.attendanceRecords)..where((t) => t.sessionId.equals(sessionId))).get();
+  Future<List<AttendanceRecord>> forSession(int sessionId) => (db.select(
+    db.attendanceRecords,
+  )..where((t) => t.sessionId.equals(sessionId))).get();
 
   /// The record for this student in this session, if any.
   ///
@@ -19,9 +21,9 @@ class AttendanceRecordRepository {
   /// (session_id, student_id), so a single-or-null read is exact rather than
   /// merely optimistic.
   Future<AttendanceRecord?> findForStudent(int sessionId, int studentId) {
-    return (db.select(db.attendanceRecords)
-          ..where((t) => t.sessionId.equals(sessionId) &
-              t.studentId.equals(studentId)))
+    return (db.select(db.attendanceRecords)..where(
+          (t) => t.sessionId.equals(sessionId) & t.studentId.equals(studentId),
+        ))
         .getSingleOrNull();
   }
 
@@ -29,10 +31,11 @@ class AttendanceRecordRepository {
   ///
   /// Drives the PRESENT/ABSENT split without loading whole rows.
   Future<Set<int>> presentStudentIds(int sessionId) async {
-    final rows = await (db.selectOnly(db.attendanceRecords)
-          ..addColumns([db.attendanceRecords.studentId])
-          ..where(db.attendanceRecords.sessionId.equals(sessionId)))
-        .get();
+    final rows =
+        await (db.selectOnly(db.attendanceRecords)
+              ..addColumns([db.attendanceRecords.studentId])
+              ..where(db.attendanceRecords.sessionId.equals(sessionId)))
+            .get();
     return rows
         .map((row) => row.read(db.attendanceRecords.studentId))
         .whereType<int>()
@@ -60,7 +63,9 @@ class AttendanceRecordRepository {
     required String rawBarcode,
     required DateTime scannedAt,
   }) async {
-    final inserted = await db.into(db.attendanceRecords).insertReturningOrNull(
+    final inserted = await db
+        .into(db.attendanceRecords)
+        .insertReturningOrNull(
           AttendanceRecordsCompanion.insert(
             sessionId: sessionId,
             studentId: student.id,
@@ -80,13 +85,26 @@ class AttendanceRecordRepository {
     }
 
     final existing = await findForStudent(sessionId, student.id);
-    return MarkPresentResult(record: existing!, isNew: false);
+    if (existing == null) {
+      // insertOrIgnore can only skip on the unique index, so a row must exist.
+      // If it somehow does not, fail loudly rather than dereferencing null.
+      throw StateError(
+        'Could not mark student ${student.id} present in session $sessionId: '
+        'the insert was ignored but no existing record was found.',
+      );
+    }
+    return MarkPresentResult(record: existing, isNew: false);
   }
 
-  Future<List<AttendanceRecord>> forStudent(int studentId) =>
-      (db.select(db.attendanceRecords)..where((t) => t.studentId.equals(studentId))).get();
+  Future<List<AttendanceRecord>> forStudent(int studentId) => (db.select(
+    db.attendanceRecords,
+  )..where((t) => t.studentId.equals(studentId))).get();
 
-  Future<List<AttendanceRecord>> history({int? studentId, DateTime? from, DateTime? to}) {
+  Future<List<AttendanceRecord>> history({
+    int? studentId,
+    DateTime? from,
+    DateTime? to,
+  }) {
     var query = db.select(db.attendanceRecords);
     if (studentId != null) {
       query = query..where((t) => t.studentId.equals(studentId));
@@ -111,7 +129,9 @@ class AttendanceRecordRepository {
     required String scannedBarcode,
     required DateTime scannedAt,
   }) {
-    return db.into(db.attendanceRecords).insert(
+    return db
+        .into(db.attendanceRecords)
+        .insert(
           AttendanceRecordsCompanion(
             sessionId: Value(sessionId),
             studentId: Value(studentId),

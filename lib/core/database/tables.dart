@@ -50,6 +50,6 @@ class AttendanceSessionRoster extends Table {
 
   @override
   List<Set<Column>> get uniqueKeys => [
-        {sessionId, studentId},
-      ];
+    {sessionId, studentId},
+  ];
 }

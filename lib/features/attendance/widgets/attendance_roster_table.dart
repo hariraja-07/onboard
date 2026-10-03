@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../attendance_controller.dart';
 import '../models/attendance_models.dart';
 
-
 /// Renders the session roster for the selected filter in a phone-first
 /// responsive layout. On narrow widths a simple list is shown; the code is
 /// structured to allow a DataTable on wide layouts without changing the API.

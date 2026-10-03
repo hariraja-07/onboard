@@ -9,11 +9,7 @@ import '../barcode_models.dart';
 /// success in exactly the same terms. The scanned value is always shown as it
 /// was received, alongside what it was interpreted as.
 class BarcodeResultCard extends StatelessWidget {
-  const BarcodeResultCard({
-    super.key,
-    required this.result,
-    this.onDismiss,
-  });
+  const BarcodeResultCard({super.key, required this.result, this.onDismiss});
 
   final BarcodeMatchResult result;
 
@@ -25,20 +21,20 @@ class BarcodeResultCard extends StatelessWidget {
     final theme = Theme.of(context);
     final (icon, title, colour) = switch (result.status) {
       BarcodeMatchStatus.matched => (
-          Icons.check_circle_outline,
-          'Student Found',
-          theme.colorScheme.primary,
-        ),
+        Icons.check_circle_outline,
+        'Student Found',
+        theme.colorScheme.primary,
+      ),
       BarcodeMatchStatus.notFound => (
-          Icons.person_off_outlined,
-          'Student Not Found',
-          theme.colorScheme.error,
-        ),
+        Icons.person_off_outlined,
+        'Student Not Found',
+        theme.colorScheme.error,
+      ),
       BarcodeMatchStatus.ambiguous => (
-          Icons.warning_amber_rounded,
-          'Ambiguous Barcode',
-          Colors.orange.shade800,
-        ),
+        Icons.warning_amber_rounded,
+        'Ambiguous Barcode',
+        Colors.orange.shade800,
+      ),
     };
 
     return Card(
@@ -121,8 +117,9 @@ class _BarcodeLine extends StatelessWidget {
           child: Text(
             display,
             style: emphasise
-                ? theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w600)
+                ? theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  )
                 : theme.textTheme.bodyLarge,
           ),
         ),
@@ -145,8 +142,9 @@ class _StudentDetails extends StatelessWidget {
       children: [
         Text(
           student.name,
-          style: theme.textTheme.headlineSmall
-              ?.copyWith(fontWeight: FontWeight.w600),
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
         const SizedBox(height: 8),
         _BarcodeLine(label: 'Roll No', value: student.rollNo),

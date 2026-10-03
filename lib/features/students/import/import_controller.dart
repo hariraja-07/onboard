@@ -53,23 +53,24 @@ class ImportState {
       status == ImportStatus.importing;
 }
 
-final studentImportControllerProvider = StateNotifierProvider.autoDispose<
-    StudentImportController, ImportState>((ref) {
-  return StudentImportController(
-    studentRepository: ref.watch(studentRepositoryProvider),
-    loadStudents: () =>
-        ref.read(studentsProvider.notifier).loadStudents(),
-  );
-});
+final studentImportControllerProvider =
+    StateNotifierProvider.autoDispose<StudentImportController, ImportState>((
+      ref,
+    ) {
+      return StudentImportController(
+        studentRepository: ref.watch(studentRepositoryProvider),
+        loadStudents: () => ref.read(studentsProvider.notifier).loadStudents(),
+      );
+    });
 
 /// Drives the Excel import: pick a file, classify it, confirm, commit.
 class StudentImportController extends StateNotifier<ImportState> {
   StudentImportController({
     required StudentRepository studentRepository,
     required Future<void> Function() loadStudents,
-  })  : _students = studentRepository,
-        _loadStudents = loadStudents,
-        super(const ImportState());
+  }) : _students = studentRepository,
+       _loadStudents = loadStudents,
+       super(const ImportState());
 
   final StudentRepository _students;
   final Future<void> Function() _loadStudents;

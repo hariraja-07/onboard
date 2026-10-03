@@ -30,13 +30,14 @@ void main() {
     }
   }
 
-  BarcodeController controller({Duration cooldown = const Duration(seconds: 2)}) =>
-      BarcodeController(
-        studentRepository: repository,
-        service: const BarcodeService(),
-        scanCooldown: cooldown,
-        clock: () => now,
-      );
+  BarcodeController controller({
+    Duration cooldown = const Duration(seconds: 2),
+  }) => BarcodeController(
+    studentRepository: repository,
+    service: const BarcodeService(),
+    scanCooldown: cooldown,
+    clock: () => now,
+  );
 
   group('roster loading', () {
     test('loads registered students for matching', () async {
@@ -45,8 +46,10 @@ void main() {
 
       await notifier.loadStudents();
 
-      expect(notifier.state.students.map((s) => s.rollNo),
-          containsAll(<String>['24BMR016', '25BMR017']));
+      expect(
+        notifier.state.students.map((s) => s.rollNo),
+        containsAll(<String>['24BMR016', '25BMR017']),
+      );
       expect(notifier.state.isLoading, isFalse);
       expect(notifier.state.error, isNull);
       expect(notifier.state.canMatch, isTrue);
@@ -161,18 +164,22 @@ void main() {
   });
 
   group('result shape', () {
-    test('an ambiguous barcode exposes every candidate from the database',
-        () async {
-      await seedStudents(['24BMR016', 'BMR016']);
-      final notifier = controller();
-      await notifier.loadStudents();
+    test(
+      'an ambiguous barcode exposes every candidate from the database',
+      () async {
+        await seedStudents(['24BMR016', 'BMR016']);
+        final notifier = controller();
+        await notifier.loadStudents();
 
-      final result = notifier.submitBarcode('732924BMR016');
+        final result = notifier.submitBarcode('732924BMR016');
 
-      expect(result.status, BarcodeMatchStatus.ambiguous);
-      expect(result.candidates.map((s) => s.rollNo),
-          containsAll(<String>['24BMR016', 'BMR016']));
-    });
+        expect(result.status, BarcodeMatchStatus.ambiguous);
+        expect(
+          result.candidates.map((s) => s.rollNo),
+          containsAll(<String>['24BMR016', 'BMR016']),
+        );
+      },
+    );
 
     test('a not-found barcode still reports the scanned value', () async {
       await seedStudents(['24BMR016']);

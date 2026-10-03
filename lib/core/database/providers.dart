@@ -14,14 +14,18 @@ final studentRepositoryProvider = Provider<StudentRepository>((ref) {
   return StudentRepository(ref.watch(databaseProvider));
 });
 
-final attendanceSessionRepositoryProvider = Provider<AttendanceSessionRepository>((ref) {
-  return AttendanceSessionRepository(ref.watch(databaseProvider));
-});
+final attendanceSessionRepositoryProvider =
+    Provider<AttendanceSessionRepository>((ref) {
+      return AttendanceSessionRepository(ref.watch(databaseProvider));
+    });
 
-final attendanceRecordRepositoryProvider = Provider<AttendanceRecordRepository>((ref) {
-  return AttendanceRecordRepository(ref.watch(databaseProvider));
-});
+final attendanceRecordRepositoryProvider = Provider<AttendanceRecordRepository>(
+  (ref) {
+    return AttendanceRecordRepository(ref.watch(databaseProvider));
+  },
+);
 
-final attendanceSessionRosterRepositoryProvider = Provider<AttendanceSessionRosterRepository>((ref) {
-  return AttendanceSessionRosterRepository(ref.watch(databaseProvider));
-});
+final attendanceSessionRosterRepositoryProvider =
+    Provider<AttendanceSessionRosterRepository>((ref) {
+      return AttendanceSessionRosterRepository(ref.watch(databaseProvider));
+    });

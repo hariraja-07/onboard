@@ -32,13 +32,13 @@ class BarcodeState {
   bool get canMatch => students.isNotEmpty && error == null;
 }
 
-final barcodeControllerProvider = StateNotifierProvider.autoDispose<
-    BarcodeController, BarcodeState>((ref) {
-  return BarcodeController(
-    studentRepository: ref.watch(studentRepositoryProvider),
-    service: const BarcodeService(),
-  );
-});
+final barcodeControllerProvider =
+    StateNotifierProvider.autoDispose<BarcodeController, BarcodeState>((ref) {
+      return BarcodeController(
+        studentRepository: ref.watch(studentRepositoryProvider),
+        service: const BarcodeService(),
+      );
+    });
 
 /// Loads the roster and resolves scanned barcodes against it.
 ///
@@ -51,11 +51,11 @@ class BarcodeController extends StateNotifier<BarcodeState> {
     required BarcodeService service,
     Duration scanCooldown = defaultScanCooldown,
     DateTime Function()? clock,
-  })  : _students = studentRepository,
-        _service = service,
-        _scanCooldown = scanCooldown,
-        _clock = clock ?? DateTime.now,
-        super(const BarcodeState());
+  }) : _students = studentRepository,
+       _service = service,
+       _scanCooldown = scanCooldown,
+       _clock = clock ?? DateTime.now,
+       super(const BarcodeState());
 
   /// How long the same barcode is ignored after a camera scan.
   static const Duration defaultScanCooldown = Duration(seconds: 2);

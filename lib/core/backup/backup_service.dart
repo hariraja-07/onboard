@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import '../database/database.dart';
 import '../utils/constants.dart';
 import 'backup_models.dart';
+import '../../features/attendance/models/attendance_models.dart';
 
 /// Reads and writes OnBoard backups: a small, self-describing JSON envelope.
 ///
@@ -191,6 +192,14 @@ class BackupService {
       'roster entries',
     );
 
+    _checkSupportedStatuses(sessions, records);
+    _checkReferences(
+      studentIds: students.map((s) => s.id).toSet(),
+      sessionIds: sessions.map((s) => s.id).toSet(),
+      records: records,
+      roster: roster,
+    );
+
     return BackupData(
       formatVersion: fileFormatVersion,
       appVersion: fileAppVersion,
@@ -354,6 +363,73 @@ class BackupService {
         throw BackupException(
           'The backup has duplicate $what for the same session and student, '
           'so it cannot be restored safely.',
+        );
+      }
+    }
+  }
+
+  /// Rejects statuses the app does not understand, so a restored database can
+  /// never contain rows the UI would render incorrectly.
+  void _checkSupportedStatuses(
+    List<AttendanceSession> sessions,
+    List<AttendanceRecord> records,
+  ) {
+    final sessionStatuses = {
+      AttendanceSessionStatus.open.wireValue,
+      AttendanceSessionStatus.completed.wireValue,
+    };
+    for (final session in sessions) {
+      if (!sessionStatuses.contains(session.status)) {
+        throw BackupException(
+          'The backup has an attendance session with an unsupported status '
+          '("${session.status}").',
+        );
+      }
+    }
+    for (final record in records) {
+      if (record.status != AttendanceStatus.present.wireValue) {
+        throw BackupException(
+          'The backup has an attendance record with an unsupported status '
+          '("${record.status}").',
+        );
+      }
+    }
+  }
+
+  /// Every record and roster entry must point at a student and a session that
+  /// the same backup contains. Foreign keys are not enforced at runtime, so
+  /// this is the only guard against a backup restoring dangling references.
+  void _checkReferences({
+    required Set<int> studentIds,
+    required Set<int> sessionIds,
+    required List<AttendanceRecord> records,
+    required List<AttendanceSessionRosterData> roster,
+  }) {
+    for (final record in records) {
+      if (!sessionIds.contains(record.sessionId)) {
+        throw BackupException(
+          'The backup has an attendance record for a session that is not in '
+          'the file (session ${record.sessionId}).',
+        );
+      }
+      if (!studentIds.contains(record.studentId)) {
+        throw BackupException(
+          'The backup has an attendance record for a student that is not in '
+          'the file (student ${record.studentId}).',
+        );
+      }
+    }
+    for (final entry in roster) {
+      if (!sessionIds.contains(entry.sessionId)) {
+        throw BackupException(
+          'The backup has a roster entry for a session that is not in the '
+          'file (session ${entry.sessionId}).',
+        );
+      }
+      if (!studentIds.contains(entry.studentId)) {
+        throw BackupException(
+          'The backup has a roster entry for a student that is not in the '
+          'file (student ${entry.studentId}).',
         );
       }
     }

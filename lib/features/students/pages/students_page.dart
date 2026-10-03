@@ -13,6 +13,8 @@ class StudentsPage extends ConsumerStatefulWidget {
 }
 
 class _StudentsPageState extends ConsumerState<StudentsPage> {
+  final TextEditingController _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -24,8 +26,35 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
   }
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final state = ref.watch(studentsProvider);
+
+    ref.listen<StudentsState>(studentsProvider, (previous, next) {
+      final message = next.actionMessage;
+      final error = next.actionError;
+      if (message != null) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(message)));
+        ref.read(studentsProvider.notifier).clearActionFeedback();
+      } else if (error != null) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(error),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        ref.read(studentsProvider.notifier).clearActionFeedback();
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -65,6 +94,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
         child: Column(
           children: [
             TextField(
+              controller: _searchController,
               decoration: const InputDecoration(
                 labelText: 'Search',
                 prefixIcon: Icon(Icons.search),
@@ -81,13 +111,20 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                     decoration: const InputDecoration(
                       labelText: 'Institution',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 14,
+                      ),
                     ),
                     items: [
                       const DropdownMenuItem(value: '', child: Text('All')),
-                      ...institutions.map((i) => DropdownMenuItem(value: i, child: Text(i))),
+                      ...institutions.map(
+                        (i) => DropdownMenuItem(value: i, child: Text(i)),
+                      ),
                     ],
-                    onChanged: (value) => notifier.setInstitutionFilter(value?.isNotEmpty == true ? value : null),
+                    onChanged: (value) => notifier.setInstitutionFilter(
+                      value?.isNotEmpty == true ? value : null,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -97,13 +134,20 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                     decoration: const InputDecoration(
                       labelText: 'Boarding Point',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 14,
+                      ),
                     ),
                     items: [
                       const DropdownMenuItem(value: '', child: Text('All')),
-                      ...boardingPoints.map((b) => DropdownMenuItem(value: b, child: Text(b))),
+                      ...boardingPoints.map(
+                        (b) => DropdownMenuItem(value: b, child: Text(b)),
+                      ),
                     ],
-                    onChanged: (value) => notifier.setBoardingPointFilter(value?.isNotEmpty == true ? value : null),
+                    onChanged: (value) => notifier.setBoardingPointFilter(
+                      value?.isNotEmpty == true ? value : null,
+                    ),
                   ),
                 ),
               ],
@@ -121,12 +165,19 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
         children: [
           Text(
             '${state.filteredStudents.length} student${state.filteredStudents.length != 1 ? 's' : ''}',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
-          if (state.searchQuery.isNotEmpty || state.institutionFilter != null || state.boardingPointFilter != null) ...[
+          if (state.searchQuery.isNotEmpty ||
+              state.institutionFilter != null ||
+              state.boardingPointFilter != null) ...[
             const Spacer(),
             TextButton(
-              onPressed: () => ref.read(studentsProvider.notifier).clearFilters(),
+              onPressed: () {
+                _searchController.clear();
+                ref.read(studentsProvider.notifier).clearFilters();
+              },
               child: const Text('Clear filters'),
             ),
           ],
@@ -141,25 +192,73 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
     }
 
     if (state.error != null) {
-      return Center(child: Text('Error: ${state.error}'));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Could not load students',
+                style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
+              ),
+              const SizedBox(height: 8),
+              Text(state.error!, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () =>
+                    ref.read(studentsProvider.notifier).loadStudents(),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     final students = state.filteredStudents;
 
     if (students.isEmpty) {
+      final filteredOut = state.students.isNotEmpty;
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              'No students found',
-              style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 8),
-            const Text('Tap + to add a student'),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                filteredOut ? Icons.search_off : Icons.people_outline,
+                size: 64,
+                color: Colors.grey.shade400,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                filteredOut
+                    ? 'No students match your filters'
+                    : 'No students yet',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 8),
+              if (filteredOut)
+                TextButton(
+                  onPressed: () {
+                    _searchController.clear();
+                    ref.read(studentsProvider.notifier).clearFilters();
+                  },
+                  child: const Text('Clear filters'),
+                )
+              else
+                const Text('Tap "Add Student" to get started'),
+            ],
+          ),
         ),
       );
     }
@@ -172,7 +271,10 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
             title: Text(
               student.rollNo,
               style: const TextStyle(fontWeight: FontWeight.w600),
@@ -181,9 +283,18 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 4),
-                Text(student.name, style: Theme.of(context).textTheme.bodyLarge),
-                Text(student.institution, style: TextStyle(color: Colors.grey.shade600)),
-                Text(student.boardingPoint, style: TextStyle(color: Colors.grey.shade600)),
+                Text(
+                  student.name,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                Text(
+                  student.institution,
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+                Text(
+                  student.boardingPoint,
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
               ],
             ),
             trailing: Row(
@@ -211,12 +322,12 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
     final isEditing = student != null;
     final rollNoCtrl = TextEditingController(text: student?.rollNo ?? '');
     final nameCtrl = TextEditingController(text: student?.name ?? '');
-    final institutionCtrl = TextEditingController(text: student?.institution ?? '');
-    final boardingPointCtrl = TextEditingController(text: student?.boardingPoint ?? '');
-
-    if (!isEditing) {
-      rollNoCtrl.addListener(() => rollNoCtrl.text = rollNoCtrl.text.toUpperCase());
-    }
+    final institutionCtrl = TextEditingController(
+      text: student?.institution ?? '',
+    );
+    final boardingPointCtrl = TextEditingController(
+      text: student?.boardingPoint ?? '',
+    );
 
     showModalBottomSheet(
       context: context,
@@ -238,21 +349,19 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 16),
-                if (!isEditing) ...[
-                  TextFormField(
-                    controller: rollNoCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Roll Number *',
-                      border: OutlineInputBorder(),
-                    ),
-                    textCapitalization: TextCapitalization.characters,
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Required';
-                      return null;
-                    },
+                TextFormField(
+                  controller: rollNoCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Roll Number *',
+                    border: OutlineInputBorder(),
                   ),
-                  const SizedBox(height: 12),
-                ],
+                  textCapitalization: TextCapitalization.characters,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Required';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: nameCtrl,
                   decoration: const InputDecoration(
@@ -296,7 +405,10 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                     final institution = institutionCtrl.text.trim();
                     final boardingPoint = boardingPointCtrl.text.trim();
 
-                    if (rollNo.isEmpty || name.isEmpty || institution.isEmpty || boardingPoint.isEmpty) {
+                    if (rollNo.isEmpty ||
+                        name.isEmpty ||
+                        institution.isEmpty ||
+                        boardingPoint.isEmpty) {
                       ScaffoldMessenger.of(ctx).showSnackBar(
                         const SnackBar(content: Text('Please fill all fields')),
                       );
@@ -310,6 +422,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                     if (isEditing) {
                       success = await notifier.editStudent(
                         id: student.id,
+                        rollNo: rollNo,
                         name: name,
                         institution: institution,
                         boardingPoint: boardingPoint,
@@ -336,7 +449,9 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                       Navigator.pop(ctx);
                       _confirmDelete(context, student.id);
                     },
-                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                    ),
                     child: const Text('Delete Student'),
                   ),
               ],
@@ -352,7 +467,10 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Student'),
-        content: const Text('Are you sure you want to delete this student?'),
+        content: const Text(
+          'Delete this student? Their attendance records will be removed too. '
+          'Past sessions keep the name they were taken with.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),

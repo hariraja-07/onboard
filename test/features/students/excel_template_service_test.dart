@@ -40,7 +40,10 @@ void main() {
       existingRollNos: const {},
     );
 
-    expect(preview.newStudents, hasLength(ExcelTemplateService.sampleRows.length));
+    expect(
+      preview.newStudents,
+      hasLength(ExcelTemplateService.sampleRows.length),
+    );
     expect(preview.invalid, isEmpty);
     expect(preview.duplicates, isEmpty);
     expect(preview.existing, isEmpty);

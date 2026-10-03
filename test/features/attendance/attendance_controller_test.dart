@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onboard/core/database/database.dart';
 import 'package:onboard/core/database/repositories/attendance_record_repository.dart';
 import 'package:onboard/core/database/repositories/attendance_session_repository.dart';
+import 'package:onboard/core/database/repositories/attendance_session_roster_repository.dart';
 import 'package:onboard/core/database/repositories/student_repository.dart';
 import 'package:onboard/features/attendance/attendance_controller.dart';
 import 'package:onboard/features/attendance/barcode/barcode_service.dart';
@@ -13,6 +14,7 @@ void main() {
   late StudentRepository students;
   late AttendanceSessionRepository sessions;
   late AttendanceRecordRepository records;
+  late AttendanceSessionRosterRepository rosters;
 
   var now = DateTime(2026, 10, 3, 9);
 
@@ -22,6 +24,7 @@ void main() {
     students = StudentRepository(db);
     sessions = AttendanceSessionRepository(db);
     records = AttendanceRecordRepository(db);
+    rosters = AttendanceSessionRosterRepository(db);
   });
 
   tearDown(() => db.close());
@@ -38,13 +41,14 @@ void main() {
 
   /// A controller over the same database, as a rebuilt app would see it.
   AttendanceController controller({Duration? cooldown}) => AttendanceController(
-        studentRepository: students,
-        sessionRepository: sessions,
-        recordRepository: records,
-        service: const BarcodeService(),
-        clock: () => now,
-        scanCooldown: cooldown ?? const Duration(seconds: 2),
-      );
+    studentRepository: students,
+    sessionRepository: sessions,
+    recordRepository: records,
+    rosterRepository: rosters,
+    service: const BarcodeService(),
+    clock: () => now,
+    scanCooldown: cooldown ?? const Duration(seconds: 2),
+  );
 
   group('loading', () {
     test('reports no session to resume when today has none', () async {
@@ -75,8 +79,8 @@ void main() {
       expect(notifier.state.phase, AttendancePhase.awaitingStart);
     });
 
-    test('does not offer to resume another day', () async {
-      await sessions.createOpen(
+    test('offers to resume an open session left from an earlier day', () async {
+      final id = await sessions.createOpen(
         attendanceDate: DateTime(2026, 9, 30),
         createdAt: DateTime(2026, 9, 30, 8),
       );
@@ -84,7 +88,11 @@ void main() {
 
       await notifier.load(forDate: now);
 
-      expect(notifier.state.canResume, isFalse);
+      // A session left open across midnight must not stay stuck forever: it is
+      // surfaced so the operator can finish it.
+      expect(notifier.state.canResume, isTrue);
+      expect(notifier.state.resumableSessionId, id);
+      expect(notifier.state.attendanceDate, DateTime(2026, 9, 30));
     });
 
     test('an empty roster reports zero rather than failing to load', () async {
@@ -112,6 +120,18 @@ void main() {
       expect(notifier.state.error, isNull);
     });
 
+    test('two quick starts open only one session', () async {
+      await addStudent('24BMR016');
+      final notifier = controller();
+      await notifier.load(forDate: now);
+
+      // The second call lands while the first is still marking and must be
+      // ignored rather than opening a duplicate.
+      await Future.wait([notifier.startSession(), notifier.startSession()]);
+
+      expect(await sessions.forDate(now), hasLength(1));
+    });
+
     test('everything starts absent', () async {
       await addStudent('24BMR016');
       await addStudent('25BMR017');
@@ -125,16 +145,18 @@ void main() {
       expect(notifier.state.attendancePercent, 0);
     });
 
-    test('resume without a session reports an error rather than pretending',
-        () async {
-      final notifier = controller();
-      await notifier.load(forDate: now);
+    test(
+      'resume without a session reports an error rather than pretending',
+      () async {
+        final notifier = controller();
+        await notifier.load(forDate: now);
 
-      await notifier.resumeSession();
+        await notifier.resumeSession();
 
-      expect(notifier.state.error, isNotNull);
-      expect(notifier.state.isActive, isFalse);
-    });
+        expect(notifier.state.error, isNotNull);
+        expect(notifier.state.isActive, isFalse);
+      },
+    );
   });
 
   group('scanning', () {
@@ -173,8 +195,7 @@ void main() {
       await notifier.scan('732924BMR016');
 
       final scannedAt = notifier.state.lastRecord!.scannedAt;
-      expect(scannedAt.millisecondsSinceEpoch,
-          now.millisecondsSinceEpoch);
+      expect(scannedAt.millisecondsSinceEpoch, now.millisecondsSinceEpoch);
     });
 
     test('an unknown barcode marks nobody', () async {
@@ -216,17 +237,19 @@ void main() {
       expect(await records.forSession(notifier.state.sessionId!), hasLength(1));
     });
 
-    test('a duplicate scan still shows the student and original arrival time',
-        () async {
-      await notifier.scan('732924BMR016');
-      final firstScan = notifier.state.lastRecord!.scannedAt;
-      now = now.add(const Duration(hours: 2));
+    test(
+      'a duplicate scan still shows the student and original arrival time',
+      () async {
+        await notifier.scan('732924BMR016');
+        final firstScan = notifier.state.lastRecord!.scannedAt;
+        now = now.add(const Duration(hours: 2));
 
-      await notifier.scan('732924BMR016');
+        await notifier.scan('732924BMR016');
 
-      expect(notifier.state.lastStudent!.name, 'Asha Rao');
-      expect(notifier.state.lastRecord!.scannedAt, firstScan);
-    });
+        expect(notifier.state.lastStudent!.name, 'Asha Rao');
+        expect(notifier.state.lastRecord!.scannedAt, firstScan);
+      },
+    );
 
     test('marks several students in a row', () async {
       await notifier.scan('732924BMR016');
@@ -235,6 +258,16 @@ void main() {
       expect(notifier.state.presentCount, 2);
       expect(notifier.state.absentCount, 0);
       expect(notifier.state.attendancePercent, 100);
+    });
+
+    test('two barcodes presented back to back are both recorded', () async {
+      // Fired without awaiting the first, exactly as the camera does; the
+      // second must queue behind it rather than being dropped mid-write.
+      final first = notifier.onBarcodeScanned('732924BMR016');
+      final second = notifier.onBarcodeScanned('732925BMR017');
+      await Future.wait([first, second]);
+
+      expect(notifier.state.presentCount, 2);
     });
 
     test('ignores a scan before a session is open', () async {
@@ -302,13 +335,19 @@ void main() {
       // Same card still in front of the lens a moment later.
       now = now.add(const Duration(milliseconds: 500));
       await notifier.onBarcodeScanned('732924BMR016');
-      expect(notifier.state.lastOutcome, AttendanceScanOutcome.marked,
-          reason: 'the repeated frame must not replace the result');
+      expect(
+        notifier.state.lastOutcome,
+        AttendanceScanOutcome.marked,
+        reason: 'the repeated frame must not replace the result',
+      );
 
       now = now.add(const Duration(seconds: 3));
       await notifier.onBarcodeScanned('732924BMR016');
-      expect(notifier.state.lastOutcome, AttendanceScanOutcome.alreadyPresent,
-          reason: 'after the window the same card reports a duplicate');
+      expect(
+        notifier.state.lastOutcome,
+        AttendanceScanOutcome.alreadyPresent,
+        reason: 'after the window the same card reports a duplicate',
+      );
     });
 
     test('a different barcode is never suppressed', () async {
@@ -355,26 +394,29 @@ void main() {
       expect(reopened.state.presentCount, 1);
       expect(reopened.state.absentCount, 1);
       expect(reopened.state.attendancePercent, 50);
-      final asha = reopened.state.roster
-          .firstWhere((e) => e.student.rollNo == '24BMR016');
+      final asha = reopened.state.roster.firstWhere(
+        (e) => e.student.rollNo == '24BMR016',
+      );
       expect(asha.isPresent, isTrue);
       expect(asha.scannedAt, isNotNull);
     });
 
-    test('resuming reuses the same session rather than creating another',
-        () async {
-      final first = controller();
-      await first.load(forDate: now);
-      await first.startSession();
-      final sessionId = first.state.sessionId;
+    test(
+      'resuming reuses the same session rather than creating another',
+      () async {
+        final first = controller();
+        await first.load(forDate: now);
+        await first.startSession();
+        final sessionId = first.state.sessionId;
 
-      final reopened = controller();
-      await reopened.load(forDate: now);
-      await reopened.resumeSession();
+        final reopened = controller();
+        await reopened.load(forDate: now);
+        await reopened.resumeSession();
 
-      expect(reopened.state.sessionId, sessionId);
-      expect(await sessions.forDate(DateTime(2026, 10, 3)), hasLength(1));
-    });
+        expect(reopened.state.sessionId, sessionId);
+        expect(await sessions.forDate(DateTime(2026, 10, 3)), hasLength(1));
+      },
+    );
 
     test('finishing closes the session so it cannot be resumed', () async {
       final notifier = controller();
@@ -402,6 +444,25 @@ void main() {
       expect(notifier.state.presentCount, 1);
       expect(notifier.state.attendancePercent, 100);
     });
+
+    test('finishing freezes students added during the session', () async {
+      await addStudent('24BMR016');
+      final notifier = controller();
+      await notifier.load(forDate: now);
+      await notifier.startSession();
+
+      // A late student joins the live roster; finishing must freeze them too,
+      // otherwise history would silently omit them.
+      await addStudent('25BMR017');
+      final sessionId = notifier.state.sessionId!;
+      await notifier.finishSession();
+
+      final frozen = await rosters.getRoster(sessionId);
+      expect(
+        frozen.map((e) => e.rollNo),
+        containsAll(<String>['24BMR016', '25BMR017']),
+      );
+    });
   });
 
   group('AttendanceState', () {
@@ -421,8 +482,7 @@ void main() {
       expect(notifier.state.presentCount, 1);
       expect(notifier.state.presentStudents, hasLength(1));
       expect(notifier.state.absentStudents, hasLength(2));
-      expect(notifier.state.attendancePercent,
-          closeTo(100 / 3, 0.0001));
+      expect(notifier.state.attendancePercent, closeTo(100 / 3, 0.0001));
     });
 
     test('an empty roster reports 0.0% rather than NaN', () {

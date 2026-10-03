@@ -99,6 +99,28 @@ void main() {
     'scannedAt': base.millisecondsSinceEpoch,
   };
 
+  Map<String, Object?> sessionJson(int id, {String status = 'open'}) => {
+    'id': id,
+    'attendanceDate': base.millisecondsSinceEpoch,
+    'status': status,
+    'createdAt': base.millisecondsSinceEpoch,
+    'endedAt': null,
+  };
+
+  Map<String, Object?> rosterJson(int id, int sessionId, int studentId) => {
+    'id': id,
+    'sessionId': sessionId,
+    'studentId': studentId,
+    'rollNo': '24BMR016',
+    'name': 'Student',
+    'institution': 'Springfield College',
+    'boardingPoint': 'North Gate',
+    'createdAt': base.millisecondsSinceEpoch,
+  };
+
+  Map<String, Object?> dataOf(Map<String, Object?> envelope) =>
+      envelope['data']! as Map<String, Object?>;
+
   group('round trip', () {
     test('snapshot -> encode -> decode preserves every row', () async {
       await seedFullDataset();
@@ -279,6 +301,96 @@ void main() {
             (e) => e.message,
             'message',
             contains('same id'),
+          ),
+        ),
+      );
+    });
+
+    test('a record pointing at a session not in the file', () async {
+      final envelope = validEnvelope();
+      final data = dataOf(envelope);
+      data['students'] = [studentJson(1, 'A')];
+      data['attendanceRecords'] = [recordJson(1, 999, 1)];
+
+      expect(
+        () => service.decodeAndValidate(bytesOf(envelope)),
+        throwsA(
+          isA<BackupException>().having(
+            (e) => e.message,
+            'message',
+            contains('session'),
+          ),
+        ),
+      );
+    });
+
+    test('a record pointing at a student not in the file', () async {
+      final envelope = validEnvelope();
+      final data = dataOf(envelope);
+      data['attendanceSessions'] = [sessionJson(1)];
+      data['attendanceRecords'] = [recordJson(1, 1, 777)];
+
+      expect(
+        () => service.decodeAndValidate(bytesOf(envelope)),
+        throwsA(
+          isA<BackupException>().having(
+            (e) => e.message,
+            'message',
+            contains('student'),
+          ),
+        ),
+      );
+    });
+
+    test('a roster entry pointing at a session not in the file', () async {
+      final envelope = validEnvelope();
+      final data = dataOf(envelope);
+      data['students'] = [studentJson(1, 'A')];
+      data['attendanceSessionRoster'] = [rosterJson(1, 999, 1)];
+
+      expect(
+        () => service.decodeAndValidate(bytesOf(envelope)),
+        throwsA(
+          isA<BackupException>().having(
+            (e) => e.message,
+            'message',
+            contains('roster entry'),
+          ),
+        ),
+      );
+    });
+
+    test('an attendance record with an unsupported status', () async {
+      final envelope = validEnvelope();
+      final data = dataOf(envelope);
+      data['students'] = [studentJson(1, 'A')];
+      data['attendanceSessions'] = [sessionJson(1)];
+      data['attendanceRecords'] = [recordJson(1, 1, 1)..['status'] = 'ABSENT'];
+
+      expect(
+        () => service.decodeAndValidate(bytesOf(envelope)),
+        throwsA(
+          isA<BackupException>().having(
+            (e) => e.message,
+            'message',
+            contains('unsupported status'),
+          ),
+        ),
+      );
+    });
+
+    test('a session with an unsupported status', () async {
+      final envelope = validEnvelope();
+      final data = dataOf(envelope);
+      data['attendanceSessions'] = [sessionJson(1, status: 'paused')];
+
+      expect(
+        () => service.decodeAndValidate(bytesOf(envelope)),
+        throwsA(
+          isA<BackupException>().having(
+            (e) => e.message,
+            'message',
+            contains('unsupported status'),
           ),
         ),
       );

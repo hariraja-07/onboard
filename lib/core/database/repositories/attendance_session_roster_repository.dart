@@ -7,8 +7,11 @@ class AttendanceSessionRosterRepository {
 
   final AppDatabase _db;
 
-  Future<void> insertRoster(int sessionId, List<Student> students,
-      {DateTime? createdAt}) async {
+  Future<void> insertRoster(
+    int sessionId,
+    List<Student> students, {
+    DateTime? createdAt,
+  }) async {
     if (students.isEmpty) return;
     final now = createdAt ?? DateTime.now();
     await _db.batch((batch) {
