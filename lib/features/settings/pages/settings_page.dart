@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/theme_mode_controller.dart';
 import '../settings_controller.dart';
 
 /// Settings, including the data-management actions.
@@ -49,12 +50,8 @@ class SettingsPage extends ConsumerWidget {
             destructive: true,
             onTap: busy ? null : () => _confirmClear(context, ref, controller),
           ),
-          const _SectionHeader('App settings'),
-          const _SettingsTile(
-            icon: Icons.tune_outlined,
-            title: 'App settings',
-            subtitle: 'Coming soon.',
-          ),
+          const _SectionHeader('Appearance'),
+          const _ThemeModeSelector(),
         ],
       ),
     );
@@ -129,6 +126,42 @@ class _SectionHeader extends StatelessWidget {
           color: theme.colorScheme.primary,
           letterSpacing: 0.8,
         ),
+      ),
+    );
+  }
+}
+
+/// Lets the operator choose System, Light or Dark. Persisted across launches.
+class _ThemeModeSelector extends ConsumerWidget {
+  const _ThemeModeSelector();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(themeModeProvider);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: SegmentedButton<ThemeMode>(
+        showSelectedIcon: false,
+        segments: const [
+          ButtonSegment(
+            value: ThemeMode.system,
+            icon: Icon(Icons.brightness_auto_outlined),
+            label: Text('System'),
+          ),
+          ButtonSegment(
+            value: ThemeMode.light,
+            icon: Icon(Icons.light_mode_outlined),
+            label: Text('Light'),
+          ),
+          ButtonSegment(
+            value: ThemeMode.dark,
+            icon: Icon(Icons.dark_mode_outlined),
+            label: Text('Dark'),
+          ),
+        ],
+        selected: {mode},
+        onSelectionChanged: (selection) =>
+            ref.read(themeModeProvider.notifier).setMode(selection.first),
       ),
     );
   }

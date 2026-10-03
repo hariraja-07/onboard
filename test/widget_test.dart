@@ -5,7 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onboard/core/router/app_router.dart';
+import 'package:onboard/core/theme/theme_mode_controller.dart';
 import 'package:onboard/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Boots the real app against a throwaway database file.
 ///
@@ -17,6 +19,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late Directory tempDir;
+  late SharedPreferences prefs;
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('onboard_smoke');
@@ -27,7 +30,19 @@ void main() {
           const MethodChannel('plugins.flutter.io/path_provider'),
           (call) async => tempDir.path,
         );
+    SharedPreferences.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
   });
+
+  /// The app with a real, empty theme store (normally installed in `main`).
+  Widget app() {
+    return ProviderScope(
+      overrides: [
+        themeStoreProvider.overrideWithValue(SharedPrefsThemeStore(prefs)),
+      ],
+      child: const OnBoardApp(),
+    );
+  }
 
   tearDown(() async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -43,7 +58,7 @@ void main() {
   testWidgets('app boots and the Students screen offers the Excel import', (
     tester,
   ) async {
-    await tester.pumpWidget(const ProviderScope(child: OnBoardApp()));
+    await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
@@ -62,7 +77,7 @@ void main() {
   });
 
   testWidgets('the manual barcode debug route builds', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: OnBoardApp()));
+    await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
     // Reuses the running app's container rather than building a second one, so
@@ -87,7 +102,7 @@ void main() {
   });
 
   testWidgets('the attendance history routes build', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: OnBoardApp()));
+    await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
     final router = ProviderScope.containerOf(
@@ -109,7 +124,7 @@ void main() {
   });
 
   testWidgets('the settings and restore routes build', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: OnBoardApp()));
+    await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
     final router = ProviderScope.containerOf(
@@ -128,6 +143,40 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.text('No backup selected.'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('the appearance setting switches between light and dark', (
+    tester,
+  ) async {
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+
+    final router = ProviderScope.containerOf(
+      tester.element(find.byType(NavigationBar)),
+    ).read(routerProvider);
+
+    router.go('/settings');
+    await tester.pumpAndSettle();
+
+    expect(find.text('System'), findsOneWidget);
+    expect(find.text('Light'), findsOneWidget);
+    expect(find.text('Dark'), findsOneWidget);
+
+    MaterialApp materialApp() =>
+        tester.widget<MaterialApp>(find.byType(MaterialApp));
+
+    expect(materialApp().themeMode, ThemeMode.system);
+
+    await tester.tap(find.text('Dark'));
+    await tester.pumpAndSettle();
+    expect(materialApp().themeMode, ThemeMode.dark);
+
+    await tester.tap(find.text('Light'));
+    await tester.pumpAndSettle();
+    expect(materialApp().themeMode, ThemeMode.light);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
