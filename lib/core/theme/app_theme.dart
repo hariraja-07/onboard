@@ -47,7 +47,11 @@ class AppTheme {
       ),
     ),
     textTheme: const TextTheme(
-      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+      headlineSmall: TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFF1A1A1A),
+      ),
       bodyLarge: TextStyle(fontSize: 16, color: Color(0xFF1A1A1A)),
       bodyMedium: TextStyle(fontSize: 14, color: Color(0xFF5F6368)),
     ),
@@ -63,6 +67,11 @@ class AppTheme {
       foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: true,
+      titleTextStyle: const TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+      ),
     ),
     cardTheme: CardThemeData(
       elevation: 0,
@@ -86,6 +95,15 @@ class AppTheme {
         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
+    ),
+    textTheme: const TextTheme(
+      headlineSmall: TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
+      ),
+      bodyLarge: TextStyle(fontSize: 16, color: Color(0xFFE5E7EB)),
+      bodyMedium: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
     ),
   );
 }

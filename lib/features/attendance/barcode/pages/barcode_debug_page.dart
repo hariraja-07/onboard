@@ -101,8 +101,9 @@ class _BarcodeDebugPageState extends ConsumerState<BarcodeDebugPage> {
           else if (state.error != null)
             Text(
               state.error!,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.error),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.error,
+              ),
             )
           else if (state.lastResult != null)
             BarcodeResultCard(
@@ -110,10 +111,7 @@ class _BarcodeDebugPageState extends ConsumerState<BarcodeDebugPage> {
               onDismiss: controller.clearResult,
             )
           else
-            Text(
-              'No barcode matched yet.',
-              style: theme.textTheme.bodyMedium,
-            ),
+            Text('No barcode matched yet.', style: theme.textTheme.bodyMedium),
           const SizedBox(height: 24),
           Text('Roster', style: theme.textTheme.titleMedium),
           const SizedBox(height: 4),

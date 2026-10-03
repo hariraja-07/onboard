@@ -62,16 +62,7 @@ class _BarcodeScannerPageState extends ConsumerState<BarcodeScannerPage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scan ID Card'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.bug_report_outlined),
-            tooltip: 'Manual test screen',
-            onPressed: () => context.push('/attendance/debug'),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Scan ID Card')),
       body: Column(
         children: [
           Expanded(
@@ -81,7 +72,8 @@ class _BarcodeScannerPageState extends ConsumerState<BarcodeScannerPage> {
                 MobileScanner(
                   controller: _scanner,
                   onDetect: _onDetect,
-                  errorBuilder: (context, error, _) => _CameraError(error: error),
+                  errorBuilder: (context, error, _) =>
+                      _CameraError(error: error),
                 ),
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -132,10 +124,7 @@ class _BarcodeScannerPageState extends ConsumerState<BarcodeScannerPage> {
             Icon(Icons.error_outline, color: theme.colorScheme.error),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                state.error!,
-                style: theme.textTheme.bodyMedium,
-              ),
+              child: Text(state.error!, style: theme.textTheme.bodyMedium),
             ),
             TextButton(
               onPressed: controller.loadStudents,
@@ -208,10 +197,7 @@ class _Panel extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: child,
-      ),
+      child: Padding(padding: const EdgeInsets.all(12), child: child),
     );
   }
 }
@@ -315,7 +301,9 @@ class _CameraError extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                denied ? Icons.no_photography_outlined : Icons.videocam_off_outlined,
+                denied
+                    ? Icons.no_photography_outlined
+                    : Icons.videocam_off_outlined,
                 size: 48,
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -323,7 +311,7 @@ class _CameraError extends StatelessWidget {
               Text(
                 denied
                     ? 'Camera access is required to scan ID cards.\n'
-                        'Enable it in Settings › OnBoard › Camera.'
+                          'Enable it in Settings › OnBoard › Camera.'
                     : 'The camera could not be started.\n${error.errorCode.name}',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium,

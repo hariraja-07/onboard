@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../attendance_controller.dart';
@@ -37,7 +36,9 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_hasLoaded) {
         _hasLoaded = true;
-        ref.read(attendanceControllerProvider.notifier).load(forDate: DateTime.now());
+        ref
+            .read(attendanceControllerProvider.notifier)
+            .load(forDate: DateTime.now());
       }
     });
     _search.addListener(() => setState(() {}));
@@ -81,7 +82,8 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
       };
       if (!matchesFilter) continue;
       if (query.isNotEmpty) {
-        final text = '${entry.student.rollNo} ${entry.student.name}'.toLowerCase();
+        final text = '${entry.student.rollNo} ${entry.student.name}'
+            .toLowerCase();
         if (!text.contains(query)) continue;
       }
       filtered.add(entry);
@@ -97,16 +99,7 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
     final roster = _filteredRoster(state.roster);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Take Attendance'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.bug_report_outlined),
-            tooltip: 'Manual test screen',
-            onPressed: () => context.push('/attendance/debug'),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Take Attendance')),
       body: Column(
         children: [
           if (state.error != null)
@@ -116,12 +109,17 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Icon(Icons.error, color: theme.colorScheme.onErrorContainer),
+                    Icon(
+                      Icons.error,
+                      color: theme.colorScheme.onErrorContainer,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         state.error!,
-                        style: TextStyle(color: theme.colorScheme.onErrorContainer),
+                        style: TextStyle(
+                          color: theme.colorScheme.onErrorContainer,
+                        ),
                       ),
                     ),
                   ],
@@ -283,6 +281,18 @@ class _SessionActions extends StatelessWidget {
         ),
       );
     }
+    // A start, resume or finish is in flight. Showing the spinner replaces the
+    // button so a second tap has nothing to hit.
+    if (state.isSessionBusy) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: SizedBox(
+          height: 24,
+          width: 24,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
     if (state.phase == AttendancePhase.awaitingStart) {
       if (state.canResume) {
         return FilledButton.tonal(
@@ -310,4 +320,3 @@ class _SessionActions extends StatelessWidget {
     return const SizedBox.shrink();
   }
 }
-

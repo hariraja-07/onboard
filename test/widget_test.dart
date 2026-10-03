@@ -48,7 +48,12 @@ void main() {
 
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.text('Students'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('Students'),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
