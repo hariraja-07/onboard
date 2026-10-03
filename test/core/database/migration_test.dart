@@ -46,8 +46,8 @@ void main() {
         .get();
     return {
       for (final row in rows)
-        '${row.read<String>('type')} ${row.read<String>('name')}':
-            row.read<String>('sql'),
+        '${row.read<String>('type')} ${row.read<String>('name')}': row
+            .read<String>('sql'),
     };
   }
 
@@ -69,7 +69,9 @@ void main() {
     } catch (_) {}
     await db.customStatement('PRAGMA user_version = 1');
 
-    final studentId = await db.into(db.students).insert(
+    final studentId = await db
+        .into(db.students)
+        .insert(
           StudentsCompanion.insert(
             rollNo: '24BMR016',
             name: 'Asha Rao',
@@ -78,14 +80,18 @@ void main() {
             createdAt: DateTime.utc(2026, 10, 3, 8),
           ),
         );
-    final sessionId = await db.into(db.attendanceSessions).insert(
+    final sessionId = await db
+        .into(db.attendanceSessions)
+        .insert(
           AttendanceSessionsCompanion.insert(
             attendanceDate: DateTime.utc(2026, 10, 3),
             createdAt: DateTime.utc(2026, 10, 3, 9),
             status: 'open',
           ),
         );
-    await db.into(db.attendanceRecords).insert(
+    await db
+        .into(db.attendanceRecords)
+        .insert(
           AttendanceRecordsCompanion.insert(
             sessionId: sessionId,
             studentId: studentId,
@@ -143,10 +149,7 @@ void main() {
       expect(records.single.status, 'PRESENT');
       // drift stores datetimes as epoch seconds and rebuilds them in local
       // time, so the instant survives but the isUtc flag does not.
-      expect(
-        records.single.scannedAt.toUtc(),
-        DateTime.utc(2026, 10, 3, 9, 5),
-      );
+      expect(records.single.scannedAt.toUtc(), DateTime.utc(2026, 10, 3, 9, 5));
       await db.close();
     });
 
@@ -160,7 +163,9 @@ void main() {
       // to reject this, otherwise "Already Present" would depend on
       // application code being careful rather than on the database.
       await expectLater(
-        db.into(db.attendanceRecords).insert(
+        db
+            .into(db.attendanceRecords)
+            .insert(
               AttendanceRecordsCompanion.insert(
                 sessionId: record.sessionId,
                 studentId: record.studentId,
@@ -196,9 +201,106 @@ void main() {
       expect(
         await schemaOf(migrated),
         await schemaOf(fresh),
-        reason: 'a migrated database must be structurally identical to a new '
+        reason:
+            'a migrated database must be structurally identical to a new '
             'one, or drift reads back a schema it cannot trust',
       );
+
+      await migrated.close();
+      await fresh.close();
+    });
+  });
+
+  group('migrating v2 to current', () {
+    /// Builds a genuine v2 file: the current schema minus the roster table
+    /// added in v3, rewound to user_version 2. `forTesting` always creates the
+    /// full current schema, so the roster table is dropped to undo v3.
+    Future<File> buildV2Database(String name) async {
+      final file = fileIn(name);
+      final db = AppDatabase.forTesting(NativeDatabase(file));
+      await db.customStatement(
+        'DROP TABLE IF EXISTS attendance_session_roster',
+      );
+      await db.customStatement('PRAGMA user_version = 2');
+
+      final studentId = await db
+          .into(db.students)
+          .insert(
+            StudentsCompanion.insert(
+              rollNo: '24BMR016',
+              name: 'Asha Rao',
+              institution: 'Springfield College',
+              boardingPoint: 'North Gate',
+              createdAt: DateTime.utc(2026, 10, 3, 8),
+            ),
+          );
+      final sessionId = await db
+          .into(db.attendanceSessions)
+          .insert(
+            AttendanceSessionsCompanion.insert(
+              attendanceDate: DateTime.utc(2026, 10, 3),
+              createdAt: DateTime.utc(2026, 10, 3, 9),
+              status: 'completed',
+            ),
+          );
+      await db
+          .into(db.attendanceRecords)
+          .insert(
+            AttendanceRecordsCompanion.insert(
+              sessionId: sessionId,
+              studentId: studentId,
+              rollNoSnapshot: '24BMR016',
+              nameSnapshot: 'Asha Rao',
+              institutionSnapshot: 'Springfield College',
+              boardingPointSnapshot: 'North Gate',
+              status: 'PRESENT',
+              scannedBarcode: '732924BMR016',
+              scannedAt: DateTime.utc(2026, 10, 3, 9, 5),
+            ),
+          );
+
+      expect(await userVersionOf(db), 2, reason: 'fixture must look like v2');
+      await db.close();
+      return file;
+    }
+
+    test('creates the attendance_session_roster table', () async {
+      final file = await buildV2Database('v2_roster.db');
+
+      final db = AppDatabase.forTesting(NativeDatabase(file));
+      // Touch it so the migration runs.
+      await db.select(db.attendanceSessionRoster).get();
+
+      expect(await userVersionOf(db), 3);
+      await db.close();
+    });
+
+    test('keeps records written before the migration', () async {
+      final file = await buildV2Database('v2_data.db');
+
+      final db = AppDatabase.forTesting(NativeDatabase(file));
+      expect((await db.select(db.students).get()).single.rollNo, '24BMR016');
+      expect(
+        (await db.select(db.attendanceSessions).get()).single.status,
+        'completed',
+      );
+      expect(
+        (await db.select(db.attendanceRecords).get()).single.status,
+        'PRESENT',
+      );
+      await db.close();
+    });
+
+    test('produces the same schema as a freshly created database', () async {
+      final file = await buildV2Database('v2_parity.db');
+
+      final migrated = AppDatabase.forTesting(NativeDatabase(file));
+      await migrated.select(migrated.attendanceSessionRoster).get();
+
+      final fresh = AppDatabase.forTesting(NativeDatabase.memory());
+      await fresh.select(fresh.students).get();
+
+      expect(await schemaOf(migrated), await schemaOf(fresh));
 
       await migrated.close();
       await fresh.close();

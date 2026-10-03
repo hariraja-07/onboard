@@ -8,12 +8,14 @@ import 'tables.dart';
 
 part 'database.g.dart';
 
-@DriftDatabase(tables: [
-  Students,
-  AttendanceSessions,
-  AttendanceRecords,
-  AttendanceSessionRoster,
-])
+@DriftDatabase(
+  tables: [
+    Students,
+    AttendanceSessions,
+    AttendanceRecords,
+    AttendanceSessionRoster,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase._() : super(_openConnection());
   static final AppDatabase instance = AppDatabase._();
@@ -29,23 +31,26 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) => m.createAll(),
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            // Replays the indexes declared on the tables themselves, read out
-            // of the generated schema rather than hand-written as SQL here.
-            // That is what guarantees a migrated database ends up structurally
-            // identical to a freshly created one: there is no second copy of
-            // the statement that could fall out of step with the annotation.
-            for (final entity in m.database.allSchemaEntities.whereType<Index>()) {
-              await m.createIndex(entity);
-            }
-          }
-          if (from < 3) {
-
-          }
-        },
-      );
+    onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        // Replays the indexes declared on the tables themselves, read out
+        // of the generated schema rather than hand-written as SQL here.
+        // That is what guarantees a migrated database ends up structurally
+        // identical to a freshly created one: there is no second copy of
+        // the statement that could fall out of step with the annotation.
+        for (final entity in m.database.allSchemaEntities.whereType<Index>()) {
+          await m.createIndex(entity);
+        }
+      }
+      if (from < 3) {
+        // The per-session roster snapshot table added for immutable
+        // attendance history. Created from the generated table object so a
+        // migrated database matches a fresh one exactly.
+        await m.createTable(attendanceSessionRoster);
+      }
+    },
+  );
 
   // Table access — use generated fields directly: $students, $attendanceSessions, $attendanceRecords
 }

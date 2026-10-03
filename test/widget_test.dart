@@ -102,4 +102,29 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
+
+  testWidgets('the settings and restore routes build', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: OnBoardApp()));
+    await tester.pumpAndSettle();
+
+    final router = ProviderScope.containerOf(
+      tester.element(find.byType(NavigationBar)),
+    ).read(routerProvider);
+
+    router.go('/settings');
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Back up data'), findsOneWidget);
+    expect(find.text('Restore data'), findsOneWidget);
+    expect(find.text('Export data'), findsOneWidget);
+    expect(find.text('Clear all data'), findsOneWidget);
+
+    router.go('/settings/restore');
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('No backup selected.'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
 }

@@ -11,6 +11,7 @@ import '../../features/history/pages/history_page.dart';
 import '../../features/history/pages/session_details_page.dart';
 import '../../features/reports/pages/reports_page.dart';
 import '../../features/settings/pages/settings_page.dart';
+import '../../features/settings/pages/restore_data_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -80,6 +81,12 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/settings',
                 builder: (c, s) => const SettingsPage(),
+                routes: [
+                  GoRoute(
+                    path: 'restore',
+                    builder: (c, s) => const RestoreDataPage(),
+                  ),
+                ],
               ),
             ],
           ),
