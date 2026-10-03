@@ -206,7 +206,10 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
               const SizedBox(height: 16),
               Text(
                 'Could not load students',
-                style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 8),
               Text(state.error!, textAlign: TextAlign.center),
@@ -236,7 +239,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
               Icon(
                 filteredOut ? Icons.search_off : Icons.people_outline,
                 size: 64,
-                color: Colors.grey.shade400,
+                color: Theme.of(context).colorScheme.outline,
               ),
               const SizedBox(height: 16),
               Text(
@@ -244,7 +247,10 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                     ? 'No students match your filters'
                     : 'No students yet',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 8),
               if (filteredOut)
@@ -289,11 +295,11 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                 ),
                 Text(
                   student.institution,
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 Text(
                   student.boardingPoint,
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
             ),
@@ -306,7 +312,11 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                   tooltip: 'Edit',
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                  icon: Icon(
+                    Icons.delete,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                   onPressed: () => _confirmDelete(context, student.id),
                   tooltip: 'Delete',
                 ),
@@ -450,7 +460,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                       _confirmDelete(context, student.id);
                     },
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
+                      foregroundColor: Theme.of(context).colorScheme.error,
                     ),
                     child: const Text('Delete Student'),
                   ),
@@ -481,7 +491,9 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
               Navigator.pop(ctx);
               ref.read(studentsProvider.notifier).deleteStudent(id);
             },
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: const Text('Delete'),
           ),
         ],

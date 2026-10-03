@@ -49,7 +49,7 @@ class AttendanceRosterTable extends StatelessWidget {
             ),
             subtitle: Text(entry.student.rollNo),
             trailing: isPresent
-                ? const Icon(Icons.check_circle, color: Colors.green)
+                ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
                 : const Icon(Icons.radio_button_unchecked),
           ),
         );

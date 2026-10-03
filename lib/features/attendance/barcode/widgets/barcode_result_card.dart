@@ -33,7 +33,7 @@ class BarcodeResultCard extends StatelessWidget {
       BarcodeMatchStatus.ambiguous => (
         Icons.warning_amber_rounded,
         'Ambiguous Barcode',
-        Colors.orange.shade800,
+        theme.colorScheme.tertiary,
       ),
     };
 

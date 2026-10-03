@@ -20,6 +20,7 @@ class AttendanceResultBanner extends StatelessWidget {
     }
     final theme = Theme.of(context);
     final color = _backgroundColor(theme, outcome);
+    final foreground = _foregroundColor(theme, outcome);
     final icon = _icon(outcome);
 
     final student = state.lastStudent;
@@ -43,7 +44,7 @@ class AttendanceResultBanner extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: theme.colorScheme.onPrimaryContainer),
+            Icon(icon, color: foreground),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -53,12 +54,15 @@ class AttendanceResultBanner extends StatelessWidget {
                     line1,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
+                      color: foreground,
                     ),
                   ),
                   if (line2 != null && line2.isNotEmpty)
                     Text(
                       line2,
-                      style: theme.textTheme.bodySmall,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: foreground,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -80,6 +84,18 @@ class AttendanceResultBanner extends StatelessWidget {
       case AttendanceScanOutcome.notFound:
       case AttendanceScanOutcome.ambiguous:
         return theme.colorScheme.errorContainer;
+    }
+  }
+
+  Color _foregroundColor(ThemeData theme, AttendanceScanOutcome outcome) {
+    switch (outcome) {
+      case AttendanceScanOutcome.marked:
+        return theme.colorScheme.onPrimaryContainer;
+      case AttendanceScanOutcome.alreadyPresent:
+        return theme.colorScheme.onTertiaryContainer;
+      case AttendanceScanOutcome.notFound:
+      case AttendanceScanOutcome.ambiguous:
+        return theme.colorScheme.onErrorContainer;
     }
   }
 

@@ -116,7 +116,11 @@ class _IdleView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.table_view_outlined, size: 64, color: Colors.grey),
+          Icon(
+            Icons.table_view_outlined,
+            size: 64,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(height: 16),
           const Text('No file selected'),
           const SizedBox(height: 16),
@@ -455,7 +459,7 @@ class _StudentList extends StatelessWidget {
                     Text(
                       'Row ${student.rowNumber}',
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: Colors.grey.shade600,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -638,13 +642,13 @@ class _ResultView extends ConsumerWidget {
             ),
             _ResultTile(
               icon: Icons.person_off_outlined,
-              color: Colors.orange.shade700,
+              color: theme.colorScheme.tertiary,
               label: 'Skipped, already in OnBoard',
               value: summary.existingSkipped,
             ),
             _ResultTile(
               icon: Icons.content_copy,
-              color: Colors.orange.shade700,
+              color: theme.colorScheme.tertiary,
               label: 'Skipped, duplicate roll no',
               value: summary.duplicatesSkipped,
             ),
