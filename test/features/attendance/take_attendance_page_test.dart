@@ -111,4 +111,41 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
+
+  testWidgets('allows manual barcode submission via search field when session is active', (
+    tester,
+  ) async {
+    await seedStudent('24BMR016', 'Alice');
+
+    final controller = AttendanceController(
+      studentRepository: students,
+      sessionRepository: sessions,
+      recordRepository: records,
+      rosterRepository: rosters,
+      service: const BarcodeService(),
+    );
+
+    await tester.pumpWidget(createSubject(controller: controller));
+    await tester.pumpAndSettle();
+
+    // Start session
+    await tester.tap(find.text('Start Morning Session'));
+    await tester.pumpAndSettle();
+
+    // Type barcode and submit
+    await tester.enterText(find.byType(TextField), '24BMR016');
+    await tester.pumpAndSettle();
+
+    // Submit via send button
+    expect(find.byTooltip('Submit barcode'), findsOneWidget);
+    await tester.tap(find.byTooltip('Submit barcode'));
+    await tester.pumpAndSettle();
+
+    // Student marked present
+    expect(find.text('Attendance Marked'), findsOneWidget);
+    expect(find.textContaining('Alice'), findsWidgets);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
 }

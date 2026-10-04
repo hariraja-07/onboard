@@ -197,9 +197,35 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
                     Expanded(
                       child: TextField(
                         controller: _search,
-                        decoration: const InputDecoration(
-                          prefixIcon: Icon(Icons.search),
-                          hintText: 'Search roll no or name',
+                        textInputAction: state.isActive
+                            ? TextInputAction.send
+                            : TextInputAction.search,
+                        onSubmitted: (value) {
+                          final text = value.trim();
+                          if (state.isActive && text.isNotEmpty) {
+                            notifier.submitBarcode(text);
+                            _search.clear();
+                          }
+                        },
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.search),
+                          hintText: state.isActive
+                              ? 'Search or enter barcode'
+                              : 'Search roll no or name',
+                          suffixIcon: state.isActive &&
+                                  _search.text.trim().isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.send_rounded),
+                                  tooltip: 'Submit barcode',
+                                  onPressed: () {
+                                    final text = _search.text.trim();
+                                    if (text.isNotEmpty) {
+                                      notifier.submitBarcode(text);
+                                      _search.clear();
+                                    }
+                                  },
+                                )
+                              : null,
                         ),
                       ),
                     ),
