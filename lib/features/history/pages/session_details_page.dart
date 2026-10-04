@@ -205,33 +205,77 @@ class _DetailsBody extends StatelessWidget {
         Expanded(
           child: entries.isEmpty
               ? const Center(child: Text('No students match these filters.'))
-              : SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SingleChildScrollView(
-                    child: DataTable(
-                      columns: const [
-                        DataColumn(label: Text('Roll No')),
-                        DataColumn(label: Text('Name')),
-                        DataColumn(label: Text('Institution')),
-                        DataColumn(label: Text('Boarding Point')),
-                        DataColumn(label: Text('Status')),
-                        DataColumn(label: Text('Scan Time')),
-                      ],
-                      rows: [
-                        for (final entry in entries)
-                          DataRow(
-                            cells: [
-                              DataCell(Text(entry.rollNo)),
-                              DataCell(Text(entry.name)),
-                              DataCell(Text(entry.institution)),
-                              DataCell(Text(entry.boardingPoint)),
-                              DataCell(_StatusLabel(status: entry.status)),
-                              DataCell(Text(_formatTime(entry.scannedAt))),
-                            ],
-                          ),
-                      ],
-                    ),
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
                   ),
+                  itemCount: entries.length,
+                  itemBuilder: (context, index) {
+                    final entry = entries[index];
+                    final isPresent = entry.status == AttendanceStatus.present;
+                    final theme = Theme.of(context);
+                    final avatarLetter = entry.name.isNotEmpty
+                        ? entry.name[0].toUpperCase()
+                        : (entry.rollNo.isNotEmpty
+                            ? entry.rollNo[0].toUpperCase()
+                            : '?');
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      elevation: 0,
+                      color: isPresent
+                          ? theme.colorScheme.primaryContainer.withValues(
+                              alpha: 0.3,
+                            )
+                          : theme.colorScheme.surfaceContainer,
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: isPresent
+                              ? theme.colorScheme.primaryContainer
+                              : theme.colorScheme.surfaceContainerHighest,
+                          foregroundColor: isPresent
+                              ? theme.colorScheme.onPrimaryContainer
+                              : theme.colorScheme.onSurfaceVariant,
+                          child: Text(avatarLetter),
+                        ),
+                        title: Text(
+                          entry.name.isNotEmpty ? entry.name : entry.rollNo,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 2),
+                            Text('${entry.rollNo} • ${entry.boardingPoint}'),
+                            if (entry.institution.isNotEmpty)
+                              Text(
+                                entry.institution,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                          ],
+                        ),
+                        trailing: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            _StatusLabel(status: entry.status),
+                            if (isPresent && entry.scannedAt != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                _formatTime(entry.scannedAt),
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
         ),
       ],
