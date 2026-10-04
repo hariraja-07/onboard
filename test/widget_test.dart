@@ -76,24 +76,19 @@ void main() {
     expect(find.byTooltip('Import from Excel'), findsOneWidget);
   });
 
-  testWidgets('the manual barcode debug route builds', (tester) async {
+  testWidgets('the attendance route builds', (tester) async {
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
-    // Reuses the running app's container rather than building a second one, so
-    // there is no extra autoDispose cycle to drain at teardown. Going straight
-    // to the nested route also keeps this off the scanner plugin's method
-    // channels, leaving a pure "is the route wired up" check.
     final router = ProviderScope.containerOf(
       tester.element(find.byType(NavigationBar)),
     ).read(routerProvider);
 
-    router.go('/attendance/debug');
+    router.go('/attendance');
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Barcode Debug'), findsWidgets);
-    expect(find.text('Match'), findsOneWidget);
+    expect(find.text('Take Attendance'), findsWidgets);
 
     // Unmount so the autoDispose providers drain inside the test rather than
     // stranding Riverpod's disposal timer past the end of it.

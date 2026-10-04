@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../features/dashboard/pages/dashboard_page.dart';
 import '../../features/students/pages/students_page.dart';
 import '../../features/students/import/pages/import_students_page.dart';
-import '../../features/attendance/barcode/pages/barcode_debug_page.dart';
 import '../../features/attendance/pages/take_attendance_page.dart';
 import '../../features/history/pages/history_page.dart';
 import '../../features/history/pages/session_details_page.dart';
@@ -46,12 +45,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/attendance',
                 builder: (c, s) => const TakeAttendancePage(),
-                routes: [
-                  GoRoute(
-                    path: 'debug',
-                    builder: (c, s) => const BarcodeDebugPage(),
-                  ),
-                ],
               ),
             ],
           ),
