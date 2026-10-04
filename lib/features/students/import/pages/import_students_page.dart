@@ -19,16 +19,6 @@ class ImportStudentsPage extends ConsumerStatefulWidget {
 
 class _ImportStudentsPageState extends ConsumerState<ImportStudentsPage> {
   @override
-  void initState() {
-    super.initState();
-    // "Import Excel" opens the picker straight away, which is the whole point
-    // of the action that got the user here.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(studentImportControllerProvider.notifier).pickAndPreview();
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     final state = ref.watch(studentImportControllerProvider);
     final controller = ref.read(studentImportControllerProvider.notifier);
@@ -82,7 +72,10 @@ class _ImportStudentsPageState extends ConsumerState<ImportStudentsPage> {
         );
 
       case ImportStatus.idle:
-        return _IdleView(onPick: controller.pickAndPreview);
+        return _IdleView(
+          onPick: controller.pickAndPreview,
+          onDownloadTemplate: () => _downloadTemplate(context, controller),
+        );
     }
   }
 
@@ -104,32 +97,66 @@ class _ImportStudentsPageState extends ConsumerState<ImportStudentsPage> {
   }
 }
 
-/// Nothing chosen yet — the picker was dismissed.
+/// Landing onboarding view when no file is currently selected.
 class _IdleView extends StatelessWidget {
-  const _IdleView({required this.onPick});
+  const _IdleView({
+    required this.onPick,
+    required this.onDownloadTemplate,
+  });
 
   final VoidCallback onPick;
+  final VoidCallback onDownloadTemplate;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.table_view_outlined,
-            size: 64,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 16),
-          const Text('No file selected'),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: onPick,
-            icon: const Icon(Icons.upload_file),
-            label: const Text('Choose Excel file'),
-          ),
-        ],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.upload_file_outlined,
+                size: 56,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Import Student Roster',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Upload an Excel (.xlsx) file with student roll numbers, names, institutions, and boarding points.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 28),
+            FilledButton.icon(
+              onPressed: onPick,
+              icon: const Icon(Icons.folder_open_outlined),
+              label: const Text('Choose Excel File (.xlsx)'),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: onDownloadTemplate,
+              icon: const Icon(Icons.download_outlined),
+              label: const Text('Download Sample Template'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -201,6 +228,30 @@ class _PreviewViewState extends State<_PreviewView>
     return Column(
       children: [
         _SourceCard(preview: preview),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: [
+              _SummaryBadge(
+                label: 'To Add',
+                count: preview.newStudents.length,
+                color: Colors.green,
+              ),
+              const SizedBox(width: 8),
+              _SummaryBadge(
+                label: 'To Update',
+                count: preview.updatedStudents.length,
+                color: Colors.blue,
+              ),
+              const SizedBox(width: 8),
+              _SummaryBadge(
+                label: 'To Skip',
+                count: preview.skippedCount,
+                color: Colors.orange,
+              ),
+            ],
+          ),
+        ),
         TabBar(
           controller: _tabs,
           isScrollable: true,
@@ -715,6 +766,52 @@ class _ResultTile extends StatelessWidget {
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryBadge extends StatelessWidget {
+  const _SummaryBadge({
+    required this.label,
+    required this.count,
+    required this.color,
+  });
+
+  final String label;
+  final int count;
+  final MaterialColor color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            Text(
+              '$count',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: color.shade800,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: color.shade800,
+              ),
+            ),
+          ],
         ),
       ),
     );
