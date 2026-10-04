@@ -28,15 +28,31 @@ class AttendanceResultBanner extends StatelessWidget {
     final line2 = switch (outcome) {
       AttendanceScanOutcome.marked =>
         student != null
-            ? (student.name.isNotEmpty ? student.name : student.rollNo)
+            ? (student.name.isNotEmpty
+                ? '${student.name} (${student.rollNo})'
+                : student.rollNo)
             : null,
       AttendanceScanOutcome.alreadyPresent =>
         student != null
-            ? (student.name.isNotEmpty ? student.name : student.rollNo)
+            ? (student.name.isNotEmpty
+                ? '${student.name} (${student.rollNo})'
+                : student.rollNo)
             : null,
-      AttendanceScanOutcome.notFound => state.lastBarcode ?? '',
-      AttendanceScanOutcome.ambiguous => state.lastBarcode ?? '',
+      AttendanceScanOutcome.notFound =>
+        state.lastBarcode != null && state.lastBarcode!.isNotEmpty
+            ? 'Barcode: ${state.lastBarcode}'
+            : '',
+      AttendanceScanOutcome.ambiguous =>
+        state.lastBarcode != null && state.lastBarcode!.isNotEmpty
+            ? 'Ambiguous barcode: ${state.lastBarcode}'
+            : '',
     };
+    final line3 = student != null &&
+            (outcome == AttendanceScanOutcome.marked ||
+                outcome == AttendanceScanOutcome.alreadyPresent)
+        ? '${student.boardingPoint}${student.institution.isNotEmpty ? ' • ${student.institution}' : ''}'
+        : null;
+
     return Material(
       color: color,
       child: Padding(
@@ -53,18 +69,43 @@ class AttendanceResultBanner extends StatelessWidget {
                   Text(
                     line1,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: foreground,
                     ),
                   ),
                   if (line2 != null && line2.isNotEmpty)
                     Text(
                       line2,
-                      style: theme.textTheme.bodySmall?.copyWith(
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
                         color: foreground,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                    ),
+                  if (line3 != null && line3.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 14,
+                            color: foreground,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              line3,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: foreground,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                 ],
               ),
