@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/export/data_export_service.dart';
+import '../../../core/widgets/skeleton.dart';
 import '../../attendance/models/attendance_models.dart';
 import '../dashboard_service.dart';
 
@@ -60,7 +61,7 @@ class DashboardPage extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async => ref.refresh(dashboardProvider.future),
         child: dashboard.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const _DashboardSkeleton(),
           error: (error, _) => _ErrorView(
             message: '$error',
             onRetry: () => ref.invalidate(dashboardProvider),
@@ -515,3 +516,46 @@ class _ErrorView extends StatelessWidget {
     );
   }
 }
+
+class _DashboardSkeleton extends StatelessWidget {
+  const _DashboardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      children: [
+        const SkeletonBox(width: 140, height: 16),
+        const SizedBox(height: 12),
+        const SkeletonBox(width: double.infinity, height: 140, radius: 16),
+        const SizedBox(height: 24),
+        const SkeletonBox(width: 100, height: 20),
+        const SizedBox(height: 8),
+        const Row(
+          children: [
+            Expanded(
+              child: SkeletonBox(
+                width: double.infinity,
+                height: 100,
+                radius: 16,
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: SkeletonBox(
+                width: double.infinity,
+                height: 100,
+                radius: 16,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        const SkeletonBox(width: 120, height: 20),
+        const SizedBox(height: 8),
+        const SkeletonBox(width: double.infinity, height: 120, radius: 16),
+      ],
+    );
+  }
+}
+

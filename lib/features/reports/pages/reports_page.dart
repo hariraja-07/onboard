@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/export/data_export_service.dart';
+import '../../../core/widgets/skeleton.dart';
 import '../../attendance/models/attendance_models.dart';
 import '../../settings/settings_controller.dart';
 import '../report_service.dart';
@@ -71,7 +72,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           const Divider(height: 1),
           Expanded(
             child: report.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const _ReportsSkeleton(),
               error: (error, _) => _ErrorView(
                 message: '$error',
                 onRetry: () => ref.invalidate(attendanceReportProvider(range)),
@@ -142,28 +143,30 @@ class _RangeSelector extends ConsumerWidget {
     ];
 
     return SizedBox(
-      height: 56,
+      height: 60,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         children: [
           for (final (label, preset) in presets)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
               child: ChoiceChip(
                 label: Text(label),
                 selected: range == preset,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                 onSelected: (_) =>
                     ref.read(reportRangeProvider.notifier).state = preset,
               ),
             ),
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
             child: ActionChip(
               avatar: const Icon(Icons.date_range_outlined, size: 18),
               label: Text(
                 presets.any((p) => p.$2 == range) ? 'Custom' : range.label,
               ),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
               onPressed: () => _pickCustomRange(context, ref, range),
             ),
           ),
@@ -371,8 +374,6 @@ class _AbsenceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.person_off_outlined),
       title: Text('${absence.rollNo} · ${absence.name}'),
       subtitle: Text(
@@ -458,3 +459,38 @@ class _ErrorView extends StatelessWidget {
     );
   }
 }
+
+class _ReportsSkeleton extends StatelessWidget {
+  const _ReportsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      children: [
+        const Row(
+          children: [
+            Expanded(child: SkeletonBox(width: double.infinity, height: 96, radius: 16)),
+            SizedBox(width: 12),
+            Expanded(child: SkeletonBox(width: double.infinity, height: 96, radius: 16)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        const Row(
+          children: [
+            Expanded(child: SkeletonBox(width: double.infinity, height: 96, radius: 16)),
+            SizedBox(width: 12),
+            Expanded(child: SkeletonBox(width: double.infinity, height: 96, radius: 16)),
+          ],
+        ),
+        const SizedBox(height: 24),
+        const SkeletonBox(width: 120, height: 20),
+        const SizedBox(height: 12),
+        const SkeletonBox(width: double.infinity, height: 76, radius: 12),
+        const SizedBox(height: 8),
+        const SkeletonBox(width: double.infinity, height: 76, radius: 12),
+      ],
+    );
+  }
+}
+
