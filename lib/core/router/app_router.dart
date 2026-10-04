@@ -69,19 +69,15 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(path: '/reports', builder: (c, s) => const ReportsPage()),
             ],
           ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/settings',
-                builder: (c, s) => const SettingsPage(),
-                routes: [
-                  GoRoute(
-                    path: 'restore',
-                    builder: (c, s) => const RestoreDataPage(),
-                  ),
-                ],
-              ),
-            ],
+        ],
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (c, s) => const SettingsPage(),
+        routes: [
+          GoRoute(
+            path: 'restore',
+            builder: (c, s) => const RestoreDataPage(),
           ),
         ],
       ),
@@ -130,11 +126,6 @@ class NavigationShellWrapper extends ConsumerWidget {
             icon: Icon(Icons.bar_chart_outlined),
             selectedIcon: Icon(Icons.bar_chart),
             label: 'Reports',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Settings',
           ),
         ],
       ),

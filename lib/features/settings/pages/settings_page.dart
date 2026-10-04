@@ -30,6 +30,7 @@ class SettingsPage extends ConsumerWidget {
             icon: Icons.restore_outlined,
             title: 'Restore data',
             subtitle: 'Replace everything with the contents of a backup file.',
+            showChevron: true,
             onTap: busy
                 ? null
                 : () => _chooseAndReview(context, ref, controller),
@@ -43,15 +44,38 @@ class SettingsPage extends ConsumerWidget {
                 ? null
                 : () => _run(context, ref, controller.exportData),
           ),
-          _SettingsTile(
-            icon: Icons.delete_forever_outlined,
-            title: 'Clear all data',
-            subtitle: 'Delete every student and attendance record.',
-            destructive: true,
-            onTap: busy ? null : () => _confirmClear(context, ref, controller),
-          ),
           const _SectionHeader('Appearance'),
           const _ThemeModeSelector(),
+          const SizedBox(height: 16),
+          const _SectionHeader('Danger Zone', isDanger: true),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Card(
+              elevation: 0,
+              color: Theme.of(context).colorScheme.errorContainer.withValues(
+                alpha: 0.2,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.error.withValues(
+                    alpha: 0.3,
+                  ),
+                ),
+              ),
+              child: _SettingsTile(
+                icon: Icons.delete_forever_outlined,
+                title: 'Clear all data',
+                subtitle:
+                    'Delete every student and attendance record permanently.',
+                destructive: true,
+                onTap: busy
+                    ? null
+                    : () => _confirmClear(context, ref, controller),
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
         ],
       ),
     );
@@ -111,19 +135,24 @@ class SettingsPage extends ConsumerWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.title);
+  const _SectionHeader(this.title, {this.isDanger = false});
 
   final String title;
+  final bool isDanger;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final color = isDanger
+        ? theme.colorScheme.error
+        : theme.colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
       child: Text(
         title.toUpperCase(),
         style: theme.textTheme.labelLarge?.copyWith(
-          color: theme.colorScheme.primary,
+          color: color,
+          fontWeight: FontWeight.bold,
           letterSpacing: 0.8,
         ),
       ),
@@ -173,6 +202,7 @@ class _SettingsTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.onTap,
+    this.showChevron = false,
     this.destructive = false,
   });
 
@@ -180,6 +210,7 @@ class _SettingsTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
+  final bool showChevron;
   final bool destructive;
 
   @override
@@ -189,9 +220,15 @@ class _SettingsTile extends StatelessWidget {
     return ListTile(
       enabled: onTap != null,
       leading: Icon(icon, color: color),
-      title: Text(title, style: TextStyle(color: color)),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: color,
+          fontWeight: destructive ? FontWeight.w600 : null,
+        ),
+      ),
       subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: showChevron ? const Icon(Icons.chevron_right) : null,
       onTap: onTap,
     );
   }

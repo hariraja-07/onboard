@@ -16,7 +16,16 @@ class DashboardPage extends ConsumerWidget {
     final today = formatDate(DateTime.now());
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => context.push('/settings'),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () async => ref.refresh(dashboardProvider.future),
         child: dashboard.when(
