@@ -587,4 +587,36 @@ void main() {
       expect(changeCount, 3);
     });
   });
+
+  group('roster snapshot preservation', () {
+    test(
+      'active roster uses frozen snapshot when live student record is edited',
+      () async {
+        final student = await addStudent('24BMR016', name: 'Original Name');
+        final notifier = controller();
+        await notifier.load(forDate: now);
+        await notifier.startSession();
+
+        expect(notifier.state.roster.single.student.name, 'Original Name');
+
+        // Edit live student record in repository
+        await students.update(
+          id: student.id,
+          name: 'Updated Name',
+          institution: 'New Institution',
+          boardingPoint: 'South Gate',
+        );
+
+        // Resuming or reloading active roster preserves frozen snapshot
+        final resumedNotifier = controller();
+        await resumedNotifier.load(forDate: now);
+        await resumedNotifier.resumeSession();
+
+        expect(
+          resumedNotifier.state.roster.single.student.name,
+          'Original Name',
+        );
+      },
+    );
+  });
 }

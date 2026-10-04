@@ -524,9 +524,34 @@ class AttendanceController extends StateNotifier<AttendanceState> {
   }
 
   /// Builds the roster, deriving PRESENT from the records already stored.
+  ///
+  /// Prefers the frozen snapshot taken when the session opened so that mid-session
+  /// edits to the student directory do not leak into the active attendance sheet.
   Future<List<StudentAttendance>> _buildRoster() async {
     final sessionId = state.sessionId;
-    final all = await _students.getAll();
+    List<Student> all;
+    final roster = _roster;
+    if (sessionId != null && roster != null) {
+      final frozen = await roster.getRoster(sessionId);
+      if (frozen.isNotEmpty) {
+        all = frozen
+            .map(
+              (r) => Student(
+                id: r.studentId,
+                rollNo: r.rollNo,
+                name: r.name,
+                institution: r.institution,
+                boardingPoint: r.boardingPoint,
+                createdAt: r.createdAt,
+              ),
+            )
+            .toList();
+      } else {
+        all = await _students.getAll();
+      }
+    } else {
+      all = await _students.getAll();
+    }
     if (sessionId == null) {
       return all.map(StudentAttendance.absent).toList();
     }
