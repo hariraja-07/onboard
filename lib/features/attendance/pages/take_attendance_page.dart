@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -27,7 +28,7 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
   );
 
   final TextEditingController _search = TextEditingController();
-  AttendanceFilter _filter = AttendanceFilter.present;
+  AttendanceFilter _filter = AttendanceFilter.all;
   bool _hasLoaded = false;
 
   @override
@@ -95,6 +96,23 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AttendanceState>(attendanceControllerProvider, (previous, next) {
+      if (next.lastOutcome != null &&
+          (next.lastOutcome != previous?.lastOutcome ||
+              next.lastBarcode != previous?.lastBarcode ||
+              next.lastRecord != previous?.lastRecord)) {
+        switch (next.lastOutcome!) {
+          case AttendanceScanOutcome.marked:
+            HapticFeedback.mediumImpact();
+          case AttendanceScanOutcome.alreadyPresent:
+            HapticFeedback.selectionClick();
+          case AttendanceScanOutcome.notFound:
+          case AttendanceScanOutcome.ambiguous:
+            HapticFeedback.heavyImpact();
+        }
+      }
+    });
+
     final state = ref.watch(attendanceControllerProvider);
     final notifier = ref.read(attendanceControllerProvider.notifier);
     final theme = Theme.of(context);
@@ -154,6 +172,10 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
                     Expanded(
                       child: SegmentedButton<AttendanceFilter>(
                         segments: const [
+                          ButtonSegment(
+                            value: AttendanceFilter.all,
+                            label: Text('All'),
+                          ),
                           ButtonSegment(
                             value: AttendanceFilter.present,
                             label: Text('Present'),
