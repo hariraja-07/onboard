@@ -5,6 +5,7 @@ import 'package:onboard/core/database/repositories/attendance_record_repository.
 import 'package:onboard/core/database/repositories/attendance_session_repository.dart';
 import 'package:onboard/core/database/repositories/attendance_session_roster_repository.dart';
 import 'package:onboard/core/database/repositories/student_repository.dart';
+import 'package:onboard/features/attendance/models/attendance_models.dart';
 import 'package:onboard/features/dashboard/dashboard_service.dart';
 
 void main() {

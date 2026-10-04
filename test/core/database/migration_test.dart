@@ -67,6 +67,8 @@ void main() {
     try {
       await db.customStatement('DROP INDEX $_indexName');
     } catch (_) {}
+    await db.customStatement('DROP TABLE IF EXISTS attendance_session_roster');
+    await db.customStatement('ALTER TABLE attendance_sessions DROP COLUMN trip_type');
     await db.customStatement('PRAGMA user_version = 1');
 
     final studentId = await db
@@ -221,6 +223,7 @@ void main() {
       await db.customStatement(
         'DROP TABLE IF EXISTS attendance_session_roster',
       );
+      await db.customStatement('ALTER TABLE attendance_sessions DROP COLUMN trip_type');
       await db.customStatement('PRAGMA user_version = 2');
 
       final studentId = await db
@@ -311,6 +314,7 @@ void main() {
     Future<File> buildV3Database(String name) async {
       final file = fileIn(name);
       final db = AppDatabase.forTesting(NativeDatabase(file));
+      await db.customStatement('ALTER TABLE attendance_sessions DROP COLUMN trip_type');
       await db.customStatement('PRAGMA user_version = 3');
       await db.close();
       return file;

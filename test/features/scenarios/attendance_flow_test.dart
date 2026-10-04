@@ -29,6 +29,7 @@ void main() {
     rosters = AttendanceSessionRosterRepository(db);
     container = ProviderContainer(
       overrides: [
+        databaseProvider.overrideWithValue(db),
         studentRepositoryProvider.overrideWithValue(students),
         attendanceSessionRepositoryProvider.overrideWithValue(sessions),
         attendanceRecordRepositoryProvider.overrideWithValue(records),
@@ -116,7 +117,7 @@ void main() {
     await students.delete(alice.id);
     expect(await records.forStudent(alice.id), isEmpty);
 
-    // The roster snapshot stays, so the report still knows who was expected.
-    expect(await rosters.getRoster(sessionId), hasLength(3));
+    // The deleted student is fully purged from active sessions and rosters.
+    expect(await rosters.getRoster(sessionId), hasLength(2));
   });
 }

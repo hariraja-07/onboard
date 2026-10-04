@@ -15,11 +15,11 @@ class Students extends Table {
 class AttendanceSessions extends Table {
   IntColumn get id => integer().autoIncrement()();
   DateTimeColumn get attendanceDate => dateTime()();
-  TextColumn get tripType =>
-      text().withLength(min: 1, max: 20).withDefault(const Constant('morning'))();
   TextColumn get status => text().withLength(min: 1, max: 20)();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get endedAt => dateTime().nullable()();
+  TextColumn get tripType =>
+      text().withLength(min: 1, max: 20).withDefault(const Constant('morning'))();
 }
 
 @TableIndex(

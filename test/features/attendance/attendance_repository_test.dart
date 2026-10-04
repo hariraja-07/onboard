@@ -336,17 +336,20 @@ void main() {
       },
     );
 
-    test('findOrCreateOpen keeps a single open session across days', () async {
+    test('findOrCreateOpen closes stale open session when starting a new date', () async {
       final first = await sessions.findOrCreateOpen(
         attendanceDate: DateTime.utc(2026, 10, 3),
       );
-      // A start while one is still open must not open a second session.
+      // A start on a new day closes the previous stale session and opens a new one.
       final second = await sessions.findOrCreateOpen(
         attendanceDate: DateTime.utc(2026, 10, 4),
       );
 
-      expect(second, first);
-      expect(await sessions.findAnyOpen(), isNotNull);
+      expect(second, isNot(first));
+      final openSession = await sessions.findAnyOpen();
+      expect(openSession?.id, second);
+      final firstSession = await sessions.findById(first);
+      expect(firstSession?.status, AttendanceSessionStatus.completed.wireValue);
     });
 
     test('complete records the finish time and closed status', () async {

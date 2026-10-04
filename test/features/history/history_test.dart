@@ -1,4 +1,5 @@
 import 'package:drift/native.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onboard/core/database/database.dart';
@@ -9,6 +10,7 @@ import 'package:onboard/core/database/repositories/attendance_session_roster_rep
 import 'package:onboard/core/database/repositories/student_repository.dart';
 import 'package:onboard/features/attendance/models/attendance_models.dart';
 import 'package:onboard/features/history/history_controller.dart';
+import 'package:onboard/features/history/pages/history_page.dart';
 
 void main() {
   late AppDatabase db;
@@ -335,5 +337,44 @@ void main() {
       ]);
       expect(details.boardingPoints, ['North Gate', 'South Gate']);
     });
+  });
+
+  testWidgets('AttendanceHistoryPage renders mobile cards for sessions', (
+    tester,
+  ) async {
+    final sessionId = await sessions.createOpen(
+      attendanceDate: DateTime(2026, 10, 3),
+      createdAt: DateTime(2026, 10, 3, 8),
+    );
+    final alice = await addStudent('24BMR016', name: 'Alice');
+    await rosters.insertRoster(sessionId, [alice]);
+    await records.markPresent(
+      sessionId: sessionId,
+      student: alice,
+      rawBarcode: '24BMR016',
+      scannedAt: DateTime(2026, 10, 3, 8, 30),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          attendanceSessionRepositoryProvider.overrideWithValue(sessions),
+          attendanceRecordRepositoryProvider.overrideWithValue(records),
+          attendanceSessionRosterRepositoryProvider.overrideWithValue(rosters),
+        ],
+        child: const MaterialApp(
+          home: AttendanceHistoryPage(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Attendance History'), findsOneWidget);
+    expect(find.textContaining('Morning'), findsWidgets);
+    expect(find.text('1/1 present'), findsOneWidget);
+    expect(find.text('View Roster'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 }

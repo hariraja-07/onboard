@@ -29,6 +29,7 @@ class AttendanceHistoryPage extends ConsumerWidget {
             ),
           ),
         ),
+        data: (sessions) {
           if (sessions.isEmpty) {
             return Center(
               child: Padding(
