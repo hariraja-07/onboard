@@ -209,16 +209,14 @@ void main() {
     });
 
     test('an ambiguous barcode marks nobody', () async {
-      // Registered before loading: the roster is a snapshot taken when the
-      // session starts, so a student imported mid-session is not matchable
-      // until the next session.
-      await addStudent('24BMR0169');
+      await addStudent('24BMR998');
+      await addStudent('24BMR999');
       final fresh = controller();
       await fresh.load(forDate: now);
       await fresh.startSession();
 
-      // Contains both 24BMR016 and 24BMR0169.
-      await fresh.scan('732924BMR0169');
+      // Contains both 24BMR998 and 24BMR999 (same length).
+      await fresh.scan('CARD_24BMR998_24BMR999');
 
       expect(fresh.state.lastOutcome, AttendanceScanOutcome.ambiguous);
       expect(fresh.state.presentCount, 0);

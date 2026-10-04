@@ -75,6 +75,20 @@ class BarcodeService {
     if (contained.isEmpty) {
       return BarcodeMatchResult.notFound(barcode: rawBarcode);
     }
+
+    // When multiple roll numbers appear within the barcode, prioritize the
+    // longest matching roll number (e.g., "24BMR016" over "BMR016").
+    contained.sort(
+      (a, b) => normalise(b.rollNo).length.compareTo(normalise(a.rollNo).length),
+    );
+    if (normalise(contained[0].rollNo).length >
+        normalise(contained[1].rollNo).length) {
+      return BarcodeMatchResult.matched(
+        barcode: rawBarcode,
+        student: contained.first,
+      );
+    }
+
     return BarcodeMatchResult.ambiguous(
       barcode: rawBarcode,
       candidates: contained,

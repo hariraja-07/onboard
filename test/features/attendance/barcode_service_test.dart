@@ -152,30 +152,39 @@ void main() {
   });
 
   group('multiple students could match', () {
-    test('reports ambiguous and lists every candidate', () {
+    test('prioritizes the longest matching roll number over shorter substrings', () {
       final result = service.match('732924BMR016', [
         student('24BMR016'),
         student('BMR016'),
       ]);
 
-      expect(result.status, BarcodeMatchStatus.ambiguous);
-      expect(result.student, isNull);
-      expect(
-        result.candidates.map((s) => s.rollNo),
-        containsAll(<String>['24BMR016', 'BMR016']),
-      );
-      expect(result.candidates, hasLength(2));
+      expect(result.status, BarcodeMatchStatus.matched);
+      expect(result.student?.rollNo, '24BMR016');
     });
 
-    test('three overlapping roll numbers are all reported', () {
+    test('longest matching roll number wins among three overlapping lengths', () {
       final result = service.match('732924BMR016', [
         student('24BMR016'),
         student('BMR016'),
         student('016'),
       ]);
 
+      expect(result.status, BarcodeMatchStatus.matched);
+      expect(result.student?.rollNo, '24BMR016');
+    });
+
+    test('reports ambiguous when multiple candidates have the same length', () {
+      final result = service.match('CARD_24BMR016_24BMR017', [
+        student('24BMR016'),
+        student('24BMR017'),
+      ]);
+
       expect(result.isAmbiguous, isTrue);
-      expect(result.candidates, hasLength(3));
+      expect(result.candidates, hasLength(2));
+      expect(
+        result.candidates.map((s) => s.rollNo),
+        containsAll(<String>['24BMR016', '24BMR017']),
+      );
     });
 
     test(
@@ -207,12 +216,12 @@ void main() {
     });
 
     test('keeps the barcode for an ambiguous result', () {
-      final result = service.match(' 732924BMR016 ', [
+      final result = service.match(' 24BMR016-24BMR017 ', [
         student('24BMR016'),
-        student('BMR016'),
+        student('24BMR017'),
       ]);
 
-      expect(result.barcode, ' 732924BMR016 ');
+      expect(result.barcode, ' 24BMR016-24BMR017 ');
     });
 
     test('keeps the barcode for a blank scan', () {
