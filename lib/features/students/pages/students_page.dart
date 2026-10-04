@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../students_controller.dart';
 import '../../../core/database/database.dart';
+import '../../../core/widgets/skeleton.dart';
 
 class StudentsPage extends ConsumerStatefulWidget {
   const StudentsPage({super.key});
@@ -98,20 +99,21 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
               decoration: const InputDecoration(
                 labelText: 'Search',
                 prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+                isDense: true,
               ),
               onChanged: notifier.setSearchQuery,
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               isExpanded: true,
+              isDense: true,
               initialValue: state.institutionFilter,
               decoration: const InputDecoration(
                 labelText: 'Institution',
-                border: OutlineInputBorder(),
+                isDense: true,
                 contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 14,
+                  horizontal: 16,
+                  vertical: 10,
                 ),
               ),
               items: [
@@ -130,13 +132,14 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               isExpanded: true,
+              isDense: true,
               initialValue: state.boardingPointFilter,
               decoration: const InputDecoration(
                 labelText: 'Boarding Point',
-                border: OutlineInputBorder(),
+                isDense: true,
                 contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 14,
+                  horizontal: 16,
+                  vertical: 10,
                 ),
               ),
               items: [
@@ -188,7 +191,18 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
 
   Widget _buildStudentList(StudentsState state) {
     if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return ListView.builder(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
+        itemCount: 6,
+        itemBuilder: (context, index) => const Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: SkeletonBox(
+            width: double.infinity,
+            height: 72,
+            radius: 12,
+          ),
+        ),
+      );
     }
 
     if (state.error != null) {
@@ -334,132 +348,138 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            16,
-            16,
-            16,
-            MediaQuery.of(ctx).viewInsets.bottom + 16,
-          ),
-          child: Form(
-            key: formKey,
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                Text(
-                  isEditing ? 'Edit Student' : 'Add Student',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: rollNoCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Roll Number *',
-                    border: OutlineInputBorder(),
+        return DraggableScrollableSheet(
+          initialChildSize: 0.85,
+          maxChildSize: 0.95,
+          minChildSize: 0.5,
+          expand: false,
+          builder: (ctx, scrollController) => SingleChildScrollView(
+            controller: scrollController,
+            padding: EdgeInsets.fromLTRB(
+              16,
+              8,
+              16,
+              MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            child: Form(
+              key: formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    isEditing ? 'Edit Student' : 'Add Student',
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  textCapitalization: TextCapitalization.characters,
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Roll number is required';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Name *',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Name is required';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: institutionCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Institution *',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Institution is required';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: boardingPointCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Boarding Point *',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Boarding point is required';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: () async {
-                    if (!formKey.currentState!.validate()) {
-                      return;
-                    }
-
-                    final rollNo = rollNoCtrl.text.trim();
-                    final name = nameCtrl.text.trim();
-                    final institution = institutionCtrl.text.trim();
-                    final boardingPoint = boardingPointCtrl.text.trim();
-
-                    final notifier = ref.read(studentsProvider.notifier);
-                    bool success;
-                    final navigator = Navigator.of(ctx);
-
-                    if (isEditing) {
-                      success = await notifier.editStudent(
-                        id: student.id,
-                        rollNo: rollNo,
-                        name: name,
-                        institution: institution,
-                        boardingPoint: boardingPoint,
-                      );
-                    } else {
-                      success = await notifier.addStudent(
-                        rollNo: rollNo,
-                        name: name,
-                        institution: institution,
-                        boardingPoint: boardingPoint,
-                      );
-                    }
-
-                    if (success && mounted) {
-                      navigator.pop();
-                    }
-                  },
-                  child: Text(isEditing ? 'Update' : 'Add'),
-                ),
-                const SizedBox(height: 8),
-                if (isEditing)
-                  OutlinedButton(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      _confirmDelete(context, student.id);
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Theme.of(context).colorScheme.error,
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: rollNoCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Roll Number *',
                     ),
-                    child: const Text('Delete Student'),
+                    textCapitalization: TextCapitalization.characters,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Roll number is required';
+                      }
+                      return null;
+                    },
                   ),
-              ],
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Name *',
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Name is required';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: institutionCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Institution *',
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Institution is required';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: boardingPointCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Boarding Point *',
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Boarding point is required';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: () async {
+                      if (!formKey.currentState!.validate()) {
+                        return;
+                      }
+
+                      final rollNo = rollNoCtrl.text.trim();
+                      final name = nameCtrl.text.trim();
+                      final institution = institutionCtrl.text.trim();
+                      final boardingPoint = boardingPointCtrl.text.trim();
+
+                      final notifier = ref.read(studentsProvider.notifier);
+                      bool success;
+                      final navigator = Navigator.of(ctx);
+
+                      if (isEditing) {
+                        success = await notifier.editStudent(
+                          id: student.id,
+                          rollNo: rollNo,
+                          name: name,
+                          institution: institution,
+                          boardingPoint: boardingPoint,
+                        );
+                      } else {
+                        success = await notifier.addStudent(
+                          rollNo: rollNo,
+                          name: name,
+                          institution: institution,
+                          boardingPoint: boardingPoint,
+                        );
+                      }
+
+                      if (success && mounted) {
+                        navigator.pop();
+                      }
+                    },
+                    child: Text(isEditing ? 'Update' : 'Add'),
+                  ),
+                  const SizedBox(height: 8),
+                  if (isEditing)
+                    OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _confirmDelete(context, student.id);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Theme.of(context).colorScheme.error,
+                      ),
+                      child: const Text('Delete Student'),
+                    ),
+                ],
+              ),
             ),
           ),
         );
