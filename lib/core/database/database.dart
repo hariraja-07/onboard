@@ -54,6 +54,9 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(attendanceSessions, attendanceSessions.tripType);
       }
     },
+    beforeOpen: (details) async {
+      await customStatement('PRAGMA foreign_keys = ON;');
+    },
   );
 
   // Table access — use generated fields directly: $students, $attendanceSessions, $attendanceRecords

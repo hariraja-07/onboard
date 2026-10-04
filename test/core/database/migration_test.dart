@@ -338,5 +338,14 @@ void main() {
 
       await db.close();
     });
+
+    test('enforces foreign keys on open', () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+
+      final row = await db.customSelect('PRAGMA foreign_keys').getSingle();
+      expect(row.read<int>('foreign_keys'), 1);
+
+      await db.close();
+    });
   });
 }
