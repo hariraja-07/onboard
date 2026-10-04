@@ -50,6 +50,24 @@ enum AttendanceSessionStatus {
   }
 }
 
+/// The shift/trip an attendance session was taken for.
+enum TripType {
+  morning('morning', 'Morning'),
+  evening('evening', 'Evening');
+
+  const TripType(this.wireValue, this.label);
+
+  final String wireValue;
+  final String label;
+
+  static TripType fromWireValue(String value) {
+    return TripType.values.firstWhere(
+      (t) => t.wireValue == value,
+      orElse: () => TripType.morning,
+    );
+  }
+}
+
 /// What happened when a barcode was presented during a session.
 ///
 /// Each outcome carries the exact wording shown to the operator. [ambiguous]
@@ -124,6 +142,7 @@ class AttendanceSessionSummary {
   const AttendanceSessionSummary({
     required this.sessionId,
     required this.attendanceDate,
+    this.tripType = 'morning',
     required this.status,
     required this.total,
     required this.present,
@@ -135,6 +154,7 @@ class AttendanceSessionSummary {
 
   final int sessionId;
   final DateTime attendanceDate;
+  final String tripType;
   final AttendanceSessionStatus status;
   final int total;
   final int present;

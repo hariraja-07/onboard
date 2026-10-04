@@ -30,6 +30,7 @@ class DataExportService {
   static const List<String> _sessionHeaders = [
     'ID',
     'Date',
+    'Trip',
     'Status',
     'Started At',
     'Ended At',
@@ -85,6 +86,7 @@ class DataExportService {
         [
           '${s.id}',
           formatDate(s.attendanceDate),
+          s.tripType == 'evening' ? 'Evening' : 'Morning',
           s.status,
           formatDateTime(s.createdAt),
           s.endedAt == null ? '' : formatDateTime(s.endedAt!),

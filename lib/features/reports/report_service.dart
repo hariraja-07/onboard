@@ -192,11 +192,12 @@ ORDER BY s.attendance_date DESC, r.roll_no ASC
     _writeSheet(
       excel,
       sessionsSheet,
-      const ['Date', 'Session ID', 'Status', 'Total', 'Present', 'Absent', '%'],
+      const ['Date', 'Trip', 'Session ID', 'Status', 'Total', 'Present', 'Absent', '%'],
       [
         for (final s in report.sessions)
           [
             formatDate(s.attendanceDate),
+            s.tripType == 'evening' ? 'Evening' : 'Morning',
             '${s.sessionId}',
             s.status == AttendanceSessionStatus.completed
                 ? 'Completed'
@@ -245,10 +246,11 @@ ORDER BY s.attendance_date DESC, r.roll_no ASC
       ['Attendance %', report.overallPercent.toStringAsFixed(1)],
       [],
       ['Sessions'],
-      ['Date', 'Session ID', 'Status', 'Total', 'Present', 'Absent', '%'],
+      ['Date', 'Trip', 'Session ID', 'Status', 'Total', 'Present', 'Absent', '%'],
       for (final s in report.sessions)
         [
           formatDate(s.attendanceDate),
+          s.tripType == 'evening' ? 'Evening' : 'Morning',
           '${s.sessionId}',
           s.status == AttendanceSessionStatus.completed ? 'Completed' : 'Open',
           '${s.total}',

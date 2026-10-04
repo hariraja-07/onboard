@@ -67,6 +67,11 @@ void main() {
       expect(recordRows, hasLength(2));
       expect(recordRows[1][3]!.value.toString(), '24BMR016');
       expect(recordRows[1][7]!.value.toString(), 'PRESENT');
+
+      final sessionRows =
+          workbook.tables[DataExportService.sessionsSheet]!.rows;
+      expect(sessionRows.first[2]!.value.toString(), 'Trip');
+      expect(sessionRows[1][2]!.value.toString(), 'Morning');
     },
   );
 
