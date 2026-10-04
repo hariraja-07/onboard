@@ -142,7 +142,7 @@ class AttendanceSessionSummary {
   const AttendanceSessionSummary({
     required this.sessionId,
     required this.attendanceDate,
-    this.tripType = 'morning',
+    this.tripType = TripType.morning,
     required this.status,
     required this.total,
     required this.present,
@@ -154,7 +154,7 @@ class AttendanceSessionSummary {
 
   final int sessionId;
   final DateTime attendanceDate;
-  final String tripType;
+  final TripType tripType;
   final AttendanceSessionStatus status;
   final int total;
   final int present;

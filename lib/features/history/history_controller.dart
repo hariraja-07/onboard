@@ -58,6 +58,9 @@ final sessionDetailsProvider = FutureProvider.autoDispose
       final summary = AttendanceSessionSummary(
         sessionId: sessionId,
         attendanceDate: session?.attendanceDate ?? DateTime.now(),
+        tripType: session != null
+            ? TripType.fromWireValue(session.tripType)
+            : TripType.morning,
         status: AttendanceSessionStatus.fromWireValue(
           session?.status ?? 'open',
         ),

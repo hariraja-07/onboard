@@ -253,7 +253,7 @@ class AttendanceSessionRepository {
     return AttendanceSessionSummary(
       sessionId: s.id,
       attendanceDate: s.attendanceDate,
-      tripType: s.tripType,
+      tripType: TripType.fromWireValue(s.tripType),
       status: s.status == 'completed'
           ? AttendanceSessionStatus.completed
           : AttendanceSessionStatus.open,

@@ -200,7 +200,7 @@ ORDER BY s.attendance_date DESC, r.roll_no ASC
         for (final s in report.sessions)
           [
             formatDate(s.attendanceDate),
-            s.tripType == 'evening' ? 'Evening' : 'Morning',
+            s.tripType.label,
             '${s.sessionId}',
             s.status == AttendanceSessionStatus.completed
                 ? 'Completed'
@@ -254,7 +254,7 @@ ORDER BY s.attendance_date DESC, r.roll_no ASC
       for (final s in report.sessions)
         [
           formatDate(s.attendanceDate),
-          s.tripType == 'evening' ? 'Evening' : 'Morning',
+          s.tripType.label,
           '${s.sessionId}',
           s.status == AttendanceSessionStatus.completed ? 'Completed' : 'Open',
           '${s.total}',
