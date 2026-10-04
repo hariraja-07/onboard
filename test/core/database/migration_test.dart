@@ -119,8 +119,8 @@ void main() {
       // the current version rather than being left at 1.
       final db = AppDatabase.forTesting(NativeDatabase(file));
 
-      expect(db.schemaVersion, 3);
-      expect(await userVersionOf(db), 3);
+      expect(db.schemaVersion, 4);
+      expect(await userVersionOf(db), 4);
       await db.close();
     });
 
@@ -271,7 +271,7 @@ void main() {
       // Touch it so the migration runs.
       await db.select(db.attendanceSessionRoster).get();
 
-      expect(await userVersionOf(db), 3);
+      expect(await userVersionOf(db), 4);
       await db.close();
     });
 
@@ -304,6 +304,26 @@ void main() {
 
       await migrated.close();
       await fresh.close();
+    });
+  });
+
+  group('migrating v3 to current', () {
+    Future<File> buildV3Database(String name) async {
+      final file = fileIn(name);
+      final db = AppDatabase.forTesting(NativeDatabase(file));
+      await db.customStatement('PRAGMA user_version = 3');
+      await db.close();
+      return file;
+    }
+
+    test('adds tripType column to attendance_sessions and updates user_version', () async {
+      final file = await buildV3Database('v3_trip.db');
+
+      final db = AppDatabase.forTesting(NativeDatabase(file));
+      await db.select(db.attendanceSessions).get();
+
+      expect(await userVersionOf(db), 4);
+      await db.close();
     });
   });
 

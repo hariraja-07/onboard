@@ -511,6 +511,21 @@ class $AttendanceSessionsTable extends AttendanceSessions
         type: DriftSqlType.dateTime,
         requiredDuringInsert: true,
       );
+  static const VerificationMeta _tripTypeMeta =
+      const VerificationMeta('tripType');
+  @override
+  late final GeneratedColumn<String> tripType = GeneratedColumn<String>(
+    'trip_type',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 20,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('morning'),
+  );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
@@ -550,6 +565,7 @@ class $AttendanceSessionsTable extends AttendanceSessions
   List<GeneratedColumn> get $columns => [
     id,
     attendanceDate,
+    tripType,
     status,
     createdAt,
     endedAt,
@@ -579,6 +595,12 @@ class $AttendanceSessionsTable extends AttendanceSessions
       );
     } else if (isInserting) {
       context.missing(_attendanceDateMeta);
+    }
+    if (data.containsKey('trip_type')) {
+      context.handle(
+        _tripTypeMeta,
+        tripType.isAcceptableOrUnknown(data['trip_type']!, _tripTypeMeta),
+      );
     }
     if (data.containsKey('status')) {
       context.handle(
@@ -619,6 +641,10 @@ class $AttendanceSessionsTable extends AttendanceSessions
         DriftSqlType.dateTime,
         data['${effectivePrefix}attendance_date'],
       )!,
+      tripType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}trip_type'],
+      ) ?? 'morning',
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}status'],
@@ -644,12 +670,14 @@ class AttendanceSession extends DataClass
     implements Insertable<AttendanceSession> {
   final int id;
   final DateTime attendanceDate;
+  final String tripType;
   final String status;
   final DateTime createdAt;
   final DateTime? endedAt;
   const AttendanceSession({
     required this.id,
     required this.attendanceDate,
+    this.tripType = 'morning',
     required this.status,
     required this.createdAt,
     this.endedAt,
@@ -659,6 +687,7 @@ class AttendanceSession extends DataClass
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['attendance_date'] = Variable<DateTime>(attendanceDate);
+    map['trip_type'] = Variable<String>(tripType);
     map['status'] = Variable<String>(status);
     map['created_at'] = Variable<DateTime>(createdAt);
     if (!nullToAbsent || endedAt != null) {
@@ -671,6 +700,7 @@ class AttendanceSession extends DataClass
     return AttendanceSessionsCompanion(
       id: Value(id),
       attendanceDate: Value(attendanceDate),
+      tripType: Value(tripType),
       status: Value(status),
       createdAt: Value(createdAt),
       endedAt: endedAt == null && nullToAbsent
@@ -687,6 +717,9 @@ class AttendanceSession extends DataClass
     return AttendanceSession(
       id: serializer.fromJson<int>(json['id']),
       attendanceDate: serializer.fromJson<DateTime>(json['attendanceDate']),
+      tripType: json.containsKey('tripType')
+          ? serializer.fromJson<String>(json['tripType'])
+          : 'morning',
       status: serializer.fromJson<String>(json['status']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
@@ -698,6 +731,7 @@ class AttendanceSession extends DataClass
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'attendanceDate': serializer.toJson<DateTime>(attendanceDate),
+      'tripType': serializer.toJson<String>(tripType),
       'status': serializer.toJson<String>(status),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'endedAt': serializer.toJson<DateTime?>(endedAt),
@@ -707,12 +741,14 @@ class AttendanceSession extends DataClass
   AttendanceSession copyWith({
     int? id,
     DateTime? attendanceDate,
+    String? tripType,
     String? status,
     DateTime? createdAt,
     Value<DateTime?> endedAt = const Value.absent(),
   }) => AttendanceSession(
     id: id ?? this.id,
     attendanceDate: attendanceDate ?? this.attendanceDate,
+    tripType: tripType ?? this.tripType,
     status: status ?? this.status,
     createdAt: createdAt ?? this.createdAt,
     endedAt: endedAt.present ? endedAt.value : this.endedAt,
@@ -723,6 +759,7 @@ class AttendanceSession extends DataClass
       attendanceDate: data.attendanceDate.present
           ? data.attendanceDate.value
           : this.attendanceDate,
+      tripType: data.tripType.present ? data.tripType.value : this.tripType,
       status: data.status.present ? data.status.value : this.status,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
@@ -734,6 +771,7 @@ class AttendanceSession extends DataClass
     return (StringBuffer('AttendanceSession(')
           ..write('id: $id, ')
           ..write('attendanceDate: $attendanceDate, ')
+          ..write('tripType: $tripType, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
           ..write('endedAt: $endedAt')
@@ -743,13 +781,14 @@ class AttendanceSession extends DataClass
 
   @override
   int get hashCode =>
-      Object.hash(id, attendanceDate, status, createdAt, endedAt);
+      Object.hash(id, attendanceDate, tripType, status, createdAt, endedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AttendanceSession &&
           other.id == this.id &&
           other.attendanceDate == this.attendanceDate &&
+          other.tripType == this.tripType &&
           other.status == this.status &&
           other.createdAt == this.createdAt &&
           other.endedAt == this.endedAt);
@@ -758,12 +797,14 @@ class AttendanceSession extends DataClass
 class AttendanceSessionsCompanion extends UpdateCompanion<AttendanceSession> {
   final Value<int> id;
   final Value<DateTime> attendanceDate;
+  final Value<String> tripType;
   final Value<String> status;
   final Value<DateTime> createdAt;
   final Value<DateTime?> endedAt;
   const AttendanceSessionsCompanion({
     this.id = const Value.absent(),
     this.attendanceDate = const Value.absent(),
+    this.tripType = const Value.absent(),
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.endedAt = const Value.absent(),
@@ -771,6 +812,7 @@ class AttendanceSessionsCompanion extends UpdateCompanion<AttendanceSession> {
   AttendanceSessionsCompanion.insert({
     this.id = const Value.absent(),
     required DateTime attendanceDate,
+    this.tripType = const Value.absent(),
     required String status,
     required DateTime createdAt,
     this.endedAt = const Value.absent(),
@@ -780,6 +822,7 @@ class AttendanceSessionsCompanion extends UpdateCompanion<AttendanceSession> {
   static Insertable<AttendanceSession> custom({
     Expression<int>? id,
     Expression<DateTime>? attendanceDate,
+    Expression<String>? tripType,
     Expression<String>? status,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? endedAt,
@@ -787,6 +830,7 @@ class AttendanceSessionsCompanion extends UpdateCompanion<AttendanceSession> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (attendanceDate != null) 'attendance_date': attendanceDate,
+      if (tripType != null) 'trip_type': tripType,
       if (status != null) 'status': status,
       if (createdAt != null) 'created_at': createdAt,
       if (endedAt != null) 'ended_at': endedAt,
@@ -796,6 +840,7 @@ class AttendanceSessionsCompanion extends UpdateCompanion<AttendanceSession> {
   AttendanceSessionsCompanion copyWith({
     Value<int>? id,
     Value<DateTime>? attendanceDate,
+    Value<String>? tripType,
     Value<String>? status,
     Value<DateTime>? createdAt,
     Value<DateTime?>? endedAt,
@@ -803,6 +848,7 @@ class AttendanceSessionsCompanion extends UpdateCompanion<AttendanceSession> {
     return AttendanceSessionsCompanion(
       id: id ?? this.id,
       attendanceDate: attendanceDate ?? this.attendanceDate,
+      tripType: tripType ?? this.tripType,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       endedAt: endedAt ?? this.endedAt,
@@ -817,6 +863,9 @@ class AttendanceSessionsCompanion extends UpdateCompanion<AttendanceSession> {
     }
     if (attendanceDate.present) {
       map['attendance_date'] = Variable<DateTime>(attendanceDate.value);
+    }
+    if (tripType.present) {
+      map['trip_type'] = Variable<String>(tripType.value);
     }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
@@ -835,6 +884,7 @@ class AttendanceSessionsCompanion extends UpdateCompanion<AttendanceSession> {
     return (StringBuffer('AttendanceSessionsCompanion(')
           ..write('id: $id, ')
           ..write('attendanceDate: $attendanceDate, ')
+          ..write('tripType: $tripType, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
           ..write('endedAt: $endedAt')

@@ -27,7 +27,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -48,6 +48,10 @@ class AppDatabase extends _$AppDatabase {
         // attendance history. Created from the generated table object so a
         // migrated database matches a fresh one exactly.
         await m.createTable(attendanceSessionRoster);
+      }
+      if (from < 4) {
+        // Adds tripType column ('morning' / 'evening') with default 'morning'.
+        await m.addColumn(attendanceSessions, attendanceSessions.tripType);
       }
     },
   );
