@@ -99,7 +99,13 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
     final roster = _filteredRoster(state.roster);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Take Attendance')),
+      appBar: AppBar(
+        title: Text(
+          state.phase == AttendancePhase.active
+              ? 'Attendance • ${state.tripType.label}'
+              : 'Take Attendance',
+        ),
+      ),
       body: Column(
         children: [
           if (state.error != null)
@@ -297,13 +303,49 @@ class _SessionActions extends StatelessWidget {
       if (state.canResume) {
         return FilledButton.tonal(
           onPressed: () => notifier.resumeSession(),
-          child: const Text('Resume Session'),
+          child: Text('Resume ${state.tripType.label} Session'),
         );
       }
       if (state.needsNewSession) {
-        return FilledButton(
-          onPressed: () => notifier.startSession(),
-          child: const Text('Start Session'),
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FilledButton(
+              onPressed: () => notifier.startSession(),
+              child: Text('Start ${state.tripType.label} Session'),
+            ),
+            const SizedBox(width: 8),
+            PopupMenuButton<TripType>(
+              tooltip: 'Select Trip',
+              initialValue: state.tripType,
+              onSelected: (trip) => notifier.selectTrip(trip),
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: TripType.morning,
+                  child: Text('Morning Trip'),
+                ),
+                const PopupMenuItem(
+                  value: TripType.evening,
+                  child: Text('Evening Trip'),
+                ),
+              ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      state.tripType == TripType.morning
+                          ? Icons.wb_sunny_outlined
+                          : Icons.nights_stay_outlined,
+                      size: 20,
+                    ),
+                    const Icon(Icons.arrow_drop_down, size: 20),
+                  ],
+                ),
+              ),
+            ),
+          ],
         );
       }
       return const Text('No students in roster');
@@ -311,11 +353,25 @@ class _SessionActions extends StatelessWidget {
     if (state.phase == AttendancePhase.active) {
       return FilledButton(
         onPressed: () => notifier.finishSession(),
-        child: const Text('Finish'),
+        child: Text('Finish (${state.tripType.label})'),
       );
     }
     if (state.phase == AttendancePhase.finished) {
-      return const Text('Session finished');
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FilledButton(
+            onPressed: () => notifier.startSession(),
+            child: Text('Start ${state.tripType.label} Session'),
+          ),
+          const SizedBox(width: 8),
+          IconButton.outlined(
+            tooltip: 'Reload',
+            icon: const Icon(Icons.refresh),
+            onPressed: () => notifier.load(forDate: DateTime.now()),
+          ),
+        ],
+      );
     }
     return const SizedBox.shrink();
   }
