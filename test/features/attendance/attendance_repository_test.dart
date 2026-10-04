@@ -385,6 +385,32 @@ void main() {
       expect(eveningSession.tripType, 'evening');
       expect(eveningSession.status, 'open');
     });
+
+    test('findOrCreateOpen closes stale open session and does not hijack trips', () async {
+      final morningId = await sessions.createOpen(
+        attendanceDate: today,
+        tripType: 'morning',
+        createdAt: DateTime.utc(2026, 10, 3, 8),
+      );
+
+      // Evening session starts while morning was left open:
+      final eveningId = await sessions.findOrCreateOpen(
+        attendanceDate: today,
+        tripType: 'evening',
+        createdAt: DateTime.utc(2026, 10, 3, 16),
+      );
+
+      expect(eveningId, isNot(equals(morningId)));
+
+      // Morning was automatically completed
+      final morningSession = await sessions.findById(morningId);
+      expect(morningSession!.status, AttendanceSessionStatus.completed.wireValue);
+
+      // Evening is the open session with correct trip
+      final eveningSession = await sessions.findById(eveningId);
+      expect(eveningSession!.status, AttendanceSessionStatus.open.wireValue);
+      expect(eveningSession.tripType, 'evening');
+    });
   });
 
   group('AttendanceStatus', () {

@@ -43,8 +43,30 @@ class AttendanceSessionRepository {
         .getSingleOrNull();
   }
 
-  /// Returns the open session if there is one, otherwise opens one for
-  /// [attendanceDate] with [tripType].
+  Future<AttendanceSession?> findOpenForDateAndTrip(
+    DateTime attendanceDate,
+    String tripType,
+  ) async {
+    final start = DateTime(
+      attendanceDate.year,
+      attendanceDate.month,
+      attendanceDate.day,
+    );
+    final end = start.add(const Duration(days: 1));
+    return (_db.select(_db.attendanceSessions)
+          ..where(
+            (tbl) =>
+                tbl.attendanceDate.isBiggerOrEqualValue(start) &
+                tbl.attendanceDate.isSmallerThanValue(end) &
+                tbl.tripType.equals(tripType) &
+                tbl.status.equals('open'),
+          )
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  /// Returns the open session if there is one for [attendanceDate] and [tripType],
+  /// otherwise closes any stale open session and opens a new one.
   ///
   /// Runs in a transaction so two near-simultaneous starts cannot both insert:
   /// the first commits the open row, the second sees it. This keeps the
@@ -56,8 +78,14 @@ class AttendanceSessionRepository {
   }) {
     final now = createdAt ?? DateTime.now();
     return _db.transaction(() async {
-      final existing = await findAnyOpen();
-      if (existing != null) return existing.id;
+      final matching = await findOpenForDateAndTrip(attendanceDate, tripType);
+      if (matching != null) return matching.id;
+
+      final anyOpen = await findAnyOpen();
+      if (anyOpen != null) {
+        await complete(anyOpen.id);
+      }
+
       return createOpen(
         attendanceDate: attendanceDate,
         tripType: tripType,
