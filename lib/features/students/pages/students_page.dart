@@ -103,54 +103,54 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
               onChanged: notifier.setSearchQuery,
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: state.institutionFilter,
-                    decoration: const InputDecoration(
-                      labelText: 'Institution',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 14,
-                      ),
-                    ),
-                    items: [
-                      const DropdownMenuItem(value: '', child: Text('All')),
-                      ...institutions.map(
-                        (i) => DropdownMenuItem(value: i, child: Text(i)),
-                      ),
-                    ],
-                    onChanged: (value) => notifier.setInstitutionFilter(
-                      value?.isNotEmpty == true ? value : null,
-                    ),
-                  ),
+            DropdownButtonFormField<String>(
+              isExpanded: true,
+              initialValue: state.institutionFilter,
+              decoration: const InputDecoration(
+                labelText: 'Institution',
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 14,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: state.boardingPointFilter,
-                    decoration: const InputDecoration(
-                      labelText: 'Boarding Point',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 14,
-                      ),
-                    ),
-                    items: [
-                      const DropdownMenuItem(value: '', child: Text('All')),
-                      ...boardingPoints.map(
-                        (b) => DropdownMenuItem(value: b, child: Text(b)),
-                      ),
-                    ],
-                    onChanged: (value) => notifier.setBoardingPointFilter(
-                      value?.isNotEmpty == true ? value : null,
-                    ),
+              ),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('All Institutions')),
+                ...institutions.map(
+                  (i) => DropdownMenuItem(
+                    value: i,
+                    child: Text(i, overflow: TextOverflow.ellipsis),
                   ),
                 ),
               ],
+              onChanged: (value) => notifier.setInstitutionFilter(
+                value?.isNotEmpty == true ? value : null,
+              ),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              isExpanded: true,
+              initialValue: state.boardingPointFilter,
+              decoration: const InputDecoration(
+                labelText: 'Boarding Point',
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 14,
+                ),
+              ),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('All Boarding Points')),
+                ...boardingPoints.map(
+                  (b) => DropdownMenuItem(
+                    value: b,
+                    child: Text(b, overflow: TextOverflow.ellipsis),
+                  ),
+                ),
+              ],
+              onChanged: (value) => notifier.setBoardingPointFilter(
+                value?.isNotEmpty == true ? value : null,
+              ),
             ),
           ],
         ),
