@@ -99,9 +99,14 @@ void main() {
     'scannedAt': base.millisecondsSinceEpoch,
   };
 
-  Map<String, Object?> sessionJson(int id, {String status = 'open'}) => {
+  Map<String, Object?> sessionJson(
+    int id, {
+    String status = 'open',
+    String tripType = 'morning',
+  }) => {
     'id': id,
     'attendanceDate': base.millisecondsSinceEpoch,
+    'tripType': tripType,
     'status': status,
     'createdAt': base.millisecondsSinceEpoch,
     'endedAt': null,
@@ -391,6 +396,23 @@ void main() {
             (e) => e.message,
             'message',
             contains('unsupported status'),
+          ),
+        ),
+      );
+    });
+
+    test('a session with an unsupported trip type', () async {
+      final envelope = validEnvelope();
+      final data = dataOf(envelope);
+      data['attendanceSessions'] = [sessionJson(1, tripType: 'night')];
+
+      expect(
+        () => service.decodeAndValidate(bytesOf(envelope)),
+        throwsA(
+          isA<BackupException>().having(
+            (e) => e.message,
+            'message',
+            contains('unsupported trip type'),
           ),
         ),
       );

@@ -378,11 +378,18 @@ class BackupService {
       AttendanceSessionStatus.open.wireValue,
       AttendanceSessionStatus.completed.wireValue,
     };
+    final sessionTripTypes = {'morning', 'evening'};
     for (final session in sessions) {
       if (!sessionStatuses.contains(session.status)) {
         throw BackupException(
           'The backup has an attendance session with an unsupported status '
           '("${session.status}").',
+        );
+      }
+      if (!sessionTripTypes.contains(session.tripType)) {
+        throw BackupException(
+          'The backup has an attendance session with an unsupported trip type '
+          '("${session.tripType}").',
         );
       }
     }
@@ -448,6 +455,7 @@ class BackupService {
   Map<String, Object?> _sessionToJson(AttendanceSession s) => {
     'id': s.id,
     'attendanceDate': s.attendanceDate.millisecondsSinceEpoch,
+    'tripType': s.tripType,
     'status': s.status,
     'createdAt': s.createdAt.millisecondsSinceEpoch,
     'endedAt': s.endedAt?.millisecondsSinceEpoch,
@@ -498,6 +506,9 @@ class BackupService {
     return AttendanceSession(
       id: r.integer(json, 'id'),
       attendanceDate: r.date(json, 'attendanceDate'),
+      tripType: json.containsKey('tripType')
+          ? r.string(json, 'tripType')
+          : 'morning',
       status: r.string(json, 'status'),
       createdAt: r.date(json, 'createdAt'),
       endedAt: r.optionalDate(json, 'endedAt'),
