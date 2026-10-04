@@ -230,29 +230,46 @@ class _SummaryCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
+    return Column(
       children: [
-        _StatCard(
-          label: 'Sessions',
-          value: '${report.sessionCount}',
-          icon: Icons.event_note_outlined,
+        Row(
+          children: [
+            Expanded(
+              child: _StatCard(
+                label: 'Sessions',
+                value: '${report.sessionCount}',
+                icon: Icons.event_note_outlined,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatCard(
+                label: 'Present',
+                value: '${report.totalPresent}/${report.totalExpected}',
+                icon: Icons.how_to_reg_outlined,
+              ),
+            ),
+          ],
         ),
-        _StatCard(
-          label: 'Present',
-          value: '${report.totalPresent}/${report.totalExpected}',
-          icon: Icons.how_to_reg_outlined,
-        ),
-        _StatCard(
-          label: 'Absent',
-          value: '${report.totalAbsent}',
-          icon: Icons.person_off_outlined,
-        ),
-        _StatCard(
-          label: 'Attendance',
-          value: '${report.overallPercent.toStringAsFixed(1)}%',
-          icon: Icons.percent_outlined,
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _StatCard(
+                label: 'Absent',
+                value: '${report.totalAbsent}',
+                icon: Icons.person_off_outlined,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatCard(
+                label: 'Attendance',
+                value: '${report.overallPercent.toStringAsFixed(1)}%',
+                icon: Icons.percent_outlined,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -273,22 +290,24 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SizedBox(
-      width: 160,
-      child: Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: theme.colorScheme.primary),
-              const SizedBox(height: 12),
-              Text(value, style: theme.textTheme.headlineSmall),
-              const SizedBox(height: 4),
-              Text(label, style: theme.textTheme.bodyMedium),
-            ],
-          ),
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: theme.colorScheme.primary),
+            const SizedBox(height: 12),
+            Text(
+              value,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(label, style: theme.textTheme.bodyMedium),
+          ],
         ),
       ),
     );
