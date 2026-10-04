@@ -1,5 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onboard/core/database/database.dart';
@@ -10,6 +11,7 @@ import 'package:onboard/core/database/repositories/attendance_session_roster_rep
 import 'package:onboard/core/database/repositories/student_repository.dart';
 import 'package:onboard/features/attendance/attendance_controller.dart';
 import 'package:onboard/features/attendance/barcode/barcode_service.dart';
+import 'package:onboard/features/attendance/models/attendance_models.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:onboard/features/attendance/pages/take_attendance_page.dart';
 
@@ -380,6 +382,74 @@ void main() {
         reason: 'the overlay must scale its copy rather than overflow the preview',
       );
       expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    });
+  });
+
+  group('scan haptics', () {
+    // Every haptic the page asks for, in order. The switch that maps an
+    // outcome to a buzz has no break statements, so without an explicit break
+    // a single mark falls through and fires every later case.
+    List<String> recordHaptics(WidgetTester tester) {
+      final haptics = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'HapticFeedback.vibrate') {
+            haptics.add(call.arguments as String);
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+      return haptics;
+    }
+
+    Future<void> submitBarcode(WidgetTester tester, String barcode) async {
+      await tester.enterText(find.byType(TextField), barcode);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Submit barcode'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('one mark buzzes once, a re-presented card stays silent', (
+      tester,
+    ) async {
+      await seedStudent('24BMR016', 'Alice');
+      final controller = buildController();
+      final haptics = recordHaptics(tester);
+
+      await tester.pumpWidget(createSubject(controller: controller));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Start Morning Session'));
+      await tester.pumpAndSettle();
+
+      await submitBarcode(tester, '24BMR016');
+      expect(controller.state.lastOutcome, AttendanceScanOutcome.marked);
+      expect(haptics, ['HapticFeedbackType.mediumImpact']);
+
+      // A different spelling of the same card clears the cooldown but resolves
+      // to the same student, which is how alreadyPresent is reached here.
+      await submitBarcode(tester, '732924BMR016');
+      expect(controller.state.lastOutcome, AttendanceScanOutcome.alreadyPresent);
+      expect(
+        haptics,
+        ['HapticFeedbackType.mediumImpact'],
+        reason: 'a card already marked must not buzz again',
+      );
+
+      // An unrecognised card is still worth one buzz, and only one.
+      await submitBarcode(tester, 'no-such-card');
+      expect(controller.state.lastOutcome, AttendanceScanOutcome.notFound);
+      expect(haptics, [
+        'HapticFeedbackType.mediumImpact',
+        'HapticFeedbackType.heavyImpact',
+      ]);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();

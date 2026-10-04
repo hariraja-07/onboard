@@ -535,6 +535,11 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     state = state.copyWith(
       isMarking: true,
       lastBarcode: rawBarcode,
+      // Cleared rather than left in place: the previous outcome belongs to a
+      // different barcode, and anything watching this state, including the
+      // haptic listener on the page, would otherwise act on it as though it
+      // were this scan's result.
+      lastOutcome: null,
       error: null,
     );
     try {

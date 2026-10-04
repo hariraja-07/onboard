@@ -189,11 +189,17 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
         switch (next.lastOutcome!) {
           case AttendanceScanOutcome.marked:
             HapticFeedback.mediumImpact();
+            break;
           case AttendanceScanOutcome.alreadyPresent:
-            HapticFeedback.selectionClick();
+            // Re-presenting a card that is already marked is routine, and the
+            // cooldown only holds for two seconds, so a student standing at the
+            // desk would otherwise be buzzed at them over and over. Stays
+            // silent; the roster row already shows them as present.
+            break;
           case AttendanceScanOutcome.notFound:
           case AttendanceScanOutcome.ambiguous:
             HapticFeedback.heavyImpact();
+            break;
         }
       }
     });
