@@ -43,7 +43,10 @@ void main() {
     );
   }
 
-  Widget createSubject({AttendanceController? controller, bool? tickersEnabled}) {
+  Widget createSubject({
+    AttendanceController? controller,
+    bool? tickersEnabled,
+  }) {
     Widget page = const TakeAttendancePage();
     if (tickersEnabled != null) {
       page = TickerMode(enabled: tickersEnabled, child: page);
@@ -58,9 +61,7 @@ void main() {
         if (controller != null)
           attendanceControllerProvider.overrideWith((ref) => controller),
       ],
-      child: MaterialApp(
-        home: page,
-      ),
+      child: MaterialApp(home: page),
     );
   }
 
@@ -72,149 +73,214 @@ void main() {
     service: const BarcodeService(),
   );
 
-    testWidgets('renders filter segmented button with All, Present, Absent and search field', (
-    tester,
-  ) async {
-    await seedStudent('24BMR016', 'Alice');
+  testWidgets(
+    'renders filter segmented button with All, Present, Absent and search field',
+    (tester) async {
+      await seedStudent('24BMR016', 'Alice');
 
-    await tester.pumpWidget(createSubject());
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(createSubject());
+      await tester.pumpAndSettle();
 
-    expect(find.text('Take Attendance'), findsOneWidget);
-    expect(find.text('All'), findsOneWidget);
-    expect(find.text('Present'), findsOneWidget);
-    expect(find.text('Absent'), findsOneWidget);
-    expect(find.byType(TextField), findsOneWidget);
-    expect(find.text('Start Morning Session'), findsOneWidget);
+      expect(find.text('Take Attendance'), findsOneWidget);
+      expect(find.text('All'), findsOneWidget);
+      expect(find.text('Present'), findsOneWidget);
+      expect(find.text('Absent'), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.text('Start Morning Session'), findsOneWidget);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
-  });
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    },
+  );
 
-  testWidgets('shows Start Next Session and Reload after session finishes (no deadlock)', (
-    tester,
-  ) async {
-    await seedStudent('24BMR016', 'Alice');
+  testWidgets(
+    'shows Start Next Session and Reload after session finishes (no deadlock)',
+    (tester) async {
+      await seedStudent('24BMR016', 'Alice');
 
-    final controller = AttendanceController(
-      studentRepository: students,
-      sessionRepository: sessions,
-      recordRepository: records,
-      rosterRepository: rosters,
-      service: const BarcodeService(),
-    );
+      final controller = AttendanceController(
+        studentRepository: students,
+        sessionRepository: sessions,
+        recordRepository: records,
+        rosterRepository: rosters,
+        service: const BarcodeService(),
+      );
 
-    await tester.pumpWidget(createSubject(controller: controller));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(createSubject(controller: controller));
+      await tester.pumpAndSettle();
 
-    // Start morning session
-    await tester.tap(find.text('Start Morning Session'));
-    await tester.pumpAndSettle();
+      // Start morning session
+      await tester.tap(find.text('Start Morning Session'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Finish (Morning)'), findsOneWidget);
-    expect(find.text('Attendance • Morning'), findsOneWidget);
+      expect(find.text('Finish (Morning)'), findsOneWidget);
+      expect(find.text('Attendance • Morning'), findsOneWidget);
 
-    // Finish morning session
-    await tester.tap(find.text('Finish (Morning)'));
-    await tester.pumpAndSettle();
+      // Finish morning session
+      await tester.tap(find.text('Finish (Morning)'));
+      await tester.pumpAndSettle();
 
-    // Deadlock is resolved: buttons for next session and reload are present
-    expect(find.text('Start Evening Session'), findsOneWidget);
-    expect(find.byTooltip('Reload'), findsOneWidget);
+      // Deadlock is resolved: buttons for next session and reload are present
+      expect(find.text('Start Evening Session'), findsOneWidget);
+      expect(find.byTooltip('Reload'), findsOneWidget);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
-  });
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    },
+  );
 
-  testWidgets('allows manual barcode submission via search field when session is active', (
-    tester,
-  ) async {
-    await seedStudent('24BMR016', 'Alice');
+  testWidgets(
+    'allows manual barcode submission via search field when session is active',
+    (tester) async {
+      await seedStudent('24BMR016', 'Alice');
 
-    final controller = AttendanceController(
-      studentRepository: students,
-      sessionRepository: sessions,
-      recordRepository: records,
-      rosterRepository: rosters,
-      service: const BarcodeService(),
-    );
+      final controller = AttendanceController(
+        studentRepository: students,
+        sessionRepository: sessions,
+        recordRepository: records,
+        rosterRepository: rosters,
+        service: const BarcodeService(),
+      );
 
-    await tester.pumpWidget(createSubject(controller: controller));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(createSubject(controller: controller));
+      await tester.pumpAndSettle();
 
-    // Start session
-    await tester.tap(find.text('Start Morning Session'));
-    await tester.pumpAndSettle();
+      // Start session
+      await tester.tap(find.text('Start Morning Session'));
+      await tester.pumpAndSettle();
 
-    // Type barcode and submit
-    await tester.enterText(find.byType(TextField), '24BMR016');
-    await tester.pumpAndSettle();
+      // Type barcode and submit
+      await tester.enterText(find.byType(TextField), '24BMR016');
+      await tester.pumpAndSettle();
 
-    // Submit via send button
-    expect(find.byTooltip('Submit barcode'), findsOneWidget);
-    await tester.tap(find.byTooltip('Submit barcode'));
-    await tester.pumpAndSettle();
+      // Submit via send button
+      expect(find.byTooltip('Submit barcode'), findsOneWidget);
+      await tester.tap(find.byTooltip('Submit barcode'));
+      await tester.pumpAndSettle();
 
-    // Student marked present
-    expect(find.text('Attendance Marked'), findsOneWidget);
-    expect(find.textContaining('Alice'), findsWidgets);
+      // Student marked present
+      expect(find.text('Attendance Marked'), findsOneWidget);
+      expect(find.textContaining('Alice'), findsWidgets);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
-  });
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    },
+  );
 
-  testWidgets('allows tapping an absent student card in roster to mark attendance', (
-    tester,
-  ) async {
-    await seedStudent('24BMR016', 'Alice');
+  testWidgets(
+    'allows tapping an absent student card in roster to mark attendance',
+    (tester) async {
+      await seedStudent('24BMR016', 'Alice');
 
-    final controller = AttendanceController(
-      studentRepository: students,
-      sessionRepository: sessions,
-      recordRepository: records,
-      rosterRepository: rosters,
-      service: const BarcodeService(),
-    );
+      final controller = AttendanceController(
+        studentRepository: students,
+        sessionRepository: sessions,
+        recordRepository: records,
+        rosterRepository: rosters,
+        service: const BarcodeService(),
+      );
 
-    await tester.pumpWidget(createSubject(controller: controller));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(createSubject(controller: controller));
+      await tester.pumpAndSettle();
 
-    // Start morning session
-    await tester.tap(find.text('Start Morning Session'));
-    await tester.pumpAndSettle();
+      // Start morning session
+      await tester.tap(find.text('Start Morning Session'));
+      await tester.pumpAndSettle();
 
-    // Tap Alice in the roster
-    expect(find.text('Alice'), findsOneWidget);
-    await tester.tap(find.text('Alice'));
-    await tester.pumpAndSettle();
+      // Tap Alice in the roster
+      expect(find.text('Alice'), findsOneWidget);
+      await tester.tap(find.text('Alice'));
+      await tester.pumpAndSettle();
 
-    // Student marked present
-    expect(find.text('Attendance Marked'), findsOneWidget);
-    expect(find.byIcon(Icons.check_circle), findsWidgets);
+      // Student marked present
+      expect(find.text('Attendance Marked'), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle), findsWidgets);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    },
+  );
+
+  group('narrow layout', () {
+    void useSmallScreen(WidgetTester tester, {double textScale = 1.0}) {
+      // The narrowest phone worth supporting. At a 1.0 pixel ratio this is
+      // 320x480 logical pixels, which is roughly a small phone in portrait.
+      tester.view.physicalSize = const Size(320, 480);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      tester.platformDispatcher.textScaleFactorTestValue = textScale;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    }
+
+    Future<void> tapVisible(WidgetTester tester, Finder finder) async {
+      // The controls scroll rather than overflow, so a control further down the
+      // page may be off the fold until it is brought in.
+      await tester.ensureVisible(finder);
+      await tester.pumpAndSettle();
+      await tester.tap(finder);
+      await tester.pumpAndSettle();
+    }
+
+    void expectNoOverflow(WidgetTester tester, String state) {
+      expect(tester.takeException(), isNull, reason: state);
+    }
+
+    testWidgets('every session state fits without overflowing', (tester) async {
+      await seedStudent('24BMR016', 'Alice');
+      useSmallScreen(tester);
+
+      await tester.pumpWidget(createSubject());
+      await tester.pumpAndSettle();
+      expectNoOverflow(tester, 'awaiting a session start');
+
+      await tapVisible(tester, find.text('Start Morning Session'));
+      expectNoOverflow(tester, 'active, nothing marked');
+
+      await tapVisible(tester, find.text('Alice'));
+      expectNoOverflow(tester, 'active, something marked');
+
+      await tapVisible(tester, find.text('Pause'));
+      expectNoOverflow(tester, 'paused');
+
+      // Resuming lives on the paused camera preview rather than in the
+      // controls, so it is the overlay copy that is tapped here.
+      await tapVisible(tester, find.text('Scanning paused'));
+      expectNoOverflow(tester, 'resumed');
+
+      await tapVisible(tester, find.text('Finish (Morning)'));
+      expectNoOverflow(tester, 'finished');
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    });
+
+    testWidgets('fits at double the system text scale', (tester) async {
+      await seedStudent('24BMR016', 'Alice');
+      useSmallScreen(tester, textScale: 2.0);
+
+      await tester.pumpWidget(createSubject());
+      await tester.pumpAndSettle();
+      expectNoOverflow(tester, 'awaiting a session start');
+
+      await tapVisible(tester, find.text('Start Morning Session'));
+      expectNoOverflow(tester, 'active, nothing marked');
+
+      await tapVisible(tester, find.text('Pause'));
+      expectNoOverflow(tester, 'paused');
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    });
   });
 
   group('shouldRunScanner', () {
     test('runs only when the session is active and the tab is visible', () {
-      expect(
-        shouldRunScanner(isActive: true, isTabVisible: true),
-        isTrue,
-      );
+      expect(shouldRunScanner(isActive: true, isTabVisible: true), isTrue);
       // Offstage tabs and finished sessions must both release the camera.
-      expect(
-        shouldRunScanner(isActive: true, isTabVisible: false),
-        isFalse,
-      );
-      expect(
-        shouldRunScanner(isActive: false, isTabVisible: true),
-        isFalse,
-      );
-      expect(
-        shouldRunScanner(isActive: false, isTabVisible: false),
-        isFalse,
-      );
+      expect(shouldRunScanner(isActive: true, isTabVisible: false), isFalse);
+      expect(shouldRunScanner(isActive: false, isTabVisible: true), isFalse);
+      expect(shouldRunScanner(isActive: false, isTabVisible: false), isFalse);
     });
   });
 
@@ -353,39 +419,48 @@ void main() {
     // what stresses it. The surface is wide enough for the pre-existing
     // _SessionActions row, which needs ~964dp at 2x text, so takeException
     // stays meaningful instead of reporting that unrelated overflow.
-    testWidgets('the paused overlay copy still fits the preview at a large text scale', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(1100, 1400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
-      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    testWidgets(
+      'the paused overlay copy still fits the preview at a large text scale',
+      (tester) async {
+        tester.view.physicalSize = const Size(1100, 1400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
-      await seedStudent('24BMR016', 'Alice');
-      final controller = buildController();
+        await seedStudent('24BMR016', 'Alice');
+        final controller = buildController();
 
-      await tester.pumpWidget(createSubject(controller: controller));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Start Morning Session'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Pause'));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(createSubject(controller: controller));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Start Morning Session'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Pause'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Scanning paused'), findsOneWidget);
-      final preview = tester.getSize(find.byType(MobileScanner));
-      final overlayCopy = tester.getSize(find.byType(FittedBox));
-      expect(
-        overlayCopy.height,
-        lessThanOrEqualTo(preview.height),
-        reason: 'the overlay must scale its copy rather than overflow the preview',
-      );
-      expect(tester.takeException(), isNull);
+        expect(find.text('Scanning paused'), findsOneWidget);
+        final preview = tester.getSize(find.byType(MobileScanner));
+        // Scoped to the overlay: the count chip scales its own text down too, so
+        // an unscoped lookup for the widget type is no longer unique.
+        final overlayCopy = tester.getSize(
+          find.ancestor(
+            of: find.text('Scanning paused'),
+            matching: find.byType(FittedBox),
+          ),
+        );
+        expect(
+          overlayCopy.height,
+          lessThanOrEqualTo(preview.height),
+          reason:
+              'the overlay must scale its copy rather than overflow the preview',
+        );
+        expect(tester.takeException(), isNull);
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump();
-    });
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+      },
+    );
   });
 
   group('scan haptics', () {
@@ -404,8 +479,10 @@ void main() {
         },
       );
       addTearDown(
-        () => tester.binding.defaultBinaryMessenger
-            .setMockMethodCallHandler(SystemChannels.platform, null),
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
       );
       return haptics;
     }
@@ -436,12 +513,13 @@ void main() {
       // A different spelling of the same card clears the cooldown but resolves
       // to the same student, which is how alreadyPresent is reached here.
       await submitBarcode(tester, '732924BMR016');
-      expect(controller.state.lastOutcome, AttendanceScanOutcome.alreadyPresent);
       expect(
-        haptics,
-        ['HapticFeedbackType.mediumImpact'],
-        reason: 'a card already marked must not buzz again',
+        controller.state.lastOutcome,
+        AttendanceScanOutcome.alreadyPresent,
       );
+      expect(haptics, [
+        'HapticFeedbackType.mediumImpact',
+      ], reason: 'a card already marked must not buzz again');
 
       // An unrecognised card is still worth one buzz, and only one.
       await submitBarcode(tester, 'no-such-card');

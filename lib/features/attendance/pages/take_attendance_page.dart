@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,10 +17,8 @@ import '../widgets/attendance_roster_table.dart';
 /// be the visible one. The router is a [StatefulShellRoute] indexed stack, so
 /// offstage branches stay mounted and their cameras keep running unless the tab
 /// itself is taken into account.
-bool shouldRunScanner({
-  required bool isActive,
-  required bool isTabVisible,
-}) => isActive && isTabVisible;
+bool shouldRunScanner({required bool isActive, required bool isTabVisible}) =>
+    isActive && isTabVisible;
 
 /// Primary Take Attendance screen.
 ///
@@ -217,161 +216,211 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
               : 'Take Attendance',
         ),
       ),
-      body: Column(
-        children: [
-          if (state.error != null)
-            Material(
-              color: theme.colorScheme.errorContainer,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.error,
-                      color: theme.colorScheme.onErrorContainer,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        state.error!,
-                        style: TextStyle(
+      // The three regions split the height explicitly instead of relying on
+      // flex, which can only divide it by ratio: the preview gives height back
+      // on a short screen, the controls take what they need up to a ceiling and
+      // scroll past that, and the roster gets the rest.
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // A small phone held in portrait, with the system text scale turned
+          // up, cannot fit a full height preview, the controls and a usable
+          // strip of roster at once. Giving the preview about a third of the
+          // height is what keeps all three usable.
+          const rosterFloor = 120.0;
+          final previewHeight = (constraints.maxHeight * 0.30).clamp(
+            96.0,
+            220.0,
+          );
+          // 8 above the controls, 1 for the divider below them.
+          final controlsCeiling = math.max(
+            0.0,
+            constraints.maxHeight - previewHeight - 9 - rosterFloor,
+          );
+
+          return Column(
+            children: [
+              if (state.error != null)
+                Material(
+                  color: theme.colorScheme.errorContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.error,
                           color: theme.colorScheme.onErrorContainer,
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            state.error!,
+                            style: TextStyle(
+                              color: theme.colorScheme.onErrorContainer,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
+              _CameraSection(
+                controller: _scanner,
+                maxHeight: previewHeight,
+                isPaused: state.isPaused,
+                isScanning: shouldRunScanner(
+                  isActive: state.isActive,
+                  isTabVisible: _isTabVisible,
+                ),
+                onDetect: _onDetect,
+                onToggleTorch: _toggleTorch,
+                onFlipCamera: _flipCamera,
+                onTogglePause: _togglePause,
               ),
-            ),
-          _CameraSection(
-            controller: _scanner,
-            isPaused: state.isPaused,
-            isScanning: shouldRunScanner(
-              isActive: state.isActive,
-              isTabVisible: _isTabVisible,
-            ),
-            onDetect: _onDetect,
-            onToggleTorch: _toggleTorch,
-            onFlipCamera: _flipCamera,
-            onTogglePause: _togglePause,
-          ),
-          const SizedBox(height: 8),
-          AttendanceResultBanner(state: state),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  controller: _search,
-                  textInputAction: state.isActive
-                      ? TextInputAction.send
-                      : TextInputAction.search,
-                  onSubmitted: (value) {
-                    final text = value.trim();
-                    if (state.isActive && text.isNotEmpty) {
-                      notifier.submitBarcode(text);
-                      _search.clear();
-                    }
-                  },
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search),
-                    hintText: state.isActive
-                        ? 'Search or enter barcode'
-                        : 'Search roll no or name',
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    suffixIcon: state.isActive &&
-                            _search.text.trim().isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.send_rounded),
-                            tooltip: 'Submit barcode',
-                            onPressed: () {
-                              final text = _search.text.trim();
-                              if (text.isNotEmpty) {
-                                notifier.submitBarcode(text);
-                                _search.clear();
-                              }
-                            },
-                          )
-                        : null,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: SegmentedButton<AttendanceFilter>(
-                    segments: const [
-                      ButtonSegment(
-                        value: AttendanceFilter.all,
-                        label: Text('All'),
-                      ),
-                      ButtonSegment(
-                        value: AttendanceFilter.present,
-                        label: Text('Present'),
-                      ),
-                      ButtonSegment(
-                        value: AttendanceFilter.absent,
-                        label: Text('Absent'),
-                      ),
-                    ],
-                    selected: {_filter},
-                    onSelectionChanged: (s) {
-                      if (s.isNotEmpty) {
-                        setState(() => _filter = s.first);
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: _SessionActions(state: state, notifier: notifier),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${state.presentCount}/${state.totalCount} • ${state.attendancePercent.toStringAsFixed(0)}%',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: controlsCeiling),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      AttendanceResultBanner(state: state),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            TextField(
+                              controller: _search,
+                              textInputAction: state.isActive
+                                  ? TextInputAction.send
+                                  : TextInputAction.search,
+                              onSubmitted: (value) {
+                                final text = value.trim();
+                                if (state.isActive && text.isNotEmpty) {
+                                  notifier.submitBarcode(text);
+                                  _search.clear();
+                                }
+                              },
+                              decoration: InputDecoration(
+                                prefixIcon: const Icon(Icons.search),
+                                hintText: state.isActive
+                                    ? 'Search or enter barcode'
+                                    : 'Search roll no or name',
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                suffixIcon:
+                                    state.isActive &&
+                                        _search.text.trim().isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.send_rounded),
+                                        tooltip: 'Submit barcode',
+                                        onPressed: () {
+                                          final text = _search.text.trim();
+                                          if (text.isNotEmpty) {
+                                            notifier.submitBarcode(text);
+                                            _search.clear();
+                                          }
+                                        },
+                                      )
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: SegmentedButton<AttendanceFilter>(
+                                segments: const [
+                                  ButtonSegment(
+                                    value: AttendanceFilter.all,
+                                    label: Text('All'),
+                                  ),
+                                  ButtonSegment(
+                                    value: AttendanceFilter.present,
+                                    label: Text('Present'),
+                                  ),
+                                  ButtonSegment(
+                                    value: AttendanceFilter.absent,
+                                    label: Text('Absent'),
+                                  ),
+                                ],
+                                selected: {_filter},
+                                onSelectionChanged: (s) {
+                                  if (s.isNotEmpty) {
+                                    setState(() => _filter = s.first);
+                                  }
+                                },
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            // One Wrap rather than a Row. The actions are what this
+                            // row is for, so when the count chip will not fit beside
+                            // them it drops to its own line instead of squeezing
+                            // them; a Row can only do one or the other.
+                            Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              runSpacing: 8,
+                              children: [
+                                _SessionActions(
+                                  state: state,
+                                  notifier: notifier,
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: theme
+                                        .colorScheme
+                                        .surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  // Scales the numbers down rather than truncating
+                                  // them when the row is tight.
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      '${state.presentCount}/${state.totalCount} • ${state.attendancePercent.toStringAsFixed(0)}%',
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
+                      const Divider(),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          ),
-          const Divider(),
-          Expanded(
-            child: AttendanceRosterTable(
-              state: state,
-              filtered: roster,
-              filter: _filter,
-              onStudentTap: state.isActive
-                  ? (entry) {
-                      if (!entry.isPresent) {
-                        notifier.submitBarcode(entry.student.rollNo);
-                      }
-                    }
-                  : null,
-            ),
-          ),
-        ],
+              ),
+              Expanded(
+                child: AttendanceRosterTable(
+                  state: state,
+                  filtered: roster,
+                  filter: _filter,
+                  onStudentTap: state.isActive
+                      ? (entry) {
+                          if (!entry.isPresent) {
+                            notifier.submitBarcode(entry.student.rollNo);
+                          }
+                        }
+                      : null,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -380,6 +429,7 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
 class _CameraSection extends StatelessWidget {
   const _CameraSection({
     required this.controller,
+    required this.maxHeight,
     required this.isPaused,
     required this.isScanning,
     required this.onDetect,
@@ -389,6 +439,7 @@ class _CameraSection extends StatelessWidget {
   });
 
   final MobileScannerController controller;
+  final double maxHeight;
   final bool isPaused;
   final bool isScanning;
   final void Function(BarcodeCapture capture) onDetect;
@@ -399,7 +450,11 @@ class _CameraSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
-    final maxCameraHeight = isKeyboardOpen ? 120.0 : 220.0;
+    // The preview never claims more than the caller measured out for it, so a
+    // short screen shrinks the camera instead of pushing the roster off.
+    final maxCameraHeight = isKeyboardOpen
+        ? math.min(120.0, maxHeight)
+        : maxHeight;
 
     return ConstrainedBox(
       constraints: BoxConstraints(minHeight: 120.0, maxHeight: maxCameraHeight),
@@ -590,12 +645,28 @@ class _ReticlePainter extends CustomPainter {
     canvas.drawLine(r.topRight, r.topRight + Offset(0, cornerLength), paint);
 
     // Bottom-left
-    canvas.drawLine(r.bottomLeft, r.bottomLeft + Offset(cornerLength, 0), paint);
-    canvas.drawLine(r.bottomLeft, r.bottomLeft + Offset(0, -cornerLength), paint);
+    canvas.drawLine(
+      r.bottomLeft,
+      r.bottomLeft + Offset(cornerLength, 0),
+      paint,
+    );
+    canvas.drawLine(
+      r.bottomLeft,
+      r.bottomLeft + Offset(0, -cornerLength),
+      paint,
+    );
 
     // Bottom-right
-    canvas.drawLine(r.bottomRight, r.bottomRight + Offset(-cornerLength, 0), paint);
-    canvas.drawLine(r.bottomRight, r.bottomRight + Offset(0, -cornerLength), paint);
+    canvas.drawLine(
+      r.bottomRight,
+      r.bottomRight + Offset(-cornerLength, 0),
+      paint,
+    );
+    canvas.drawLine(
+      r.bottomRight,
+      r.bottomRight + Offset(0, -cornerLength),
+      paint,
+    );
   }
 
   @override
@@ -620,10 +691,16 @@ class _CameraError extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.camera_alt_outlined, color: Colors.white70, size: 36),
+            const Icon(
+              Icons.camera_alt_outlined,
+              color: Colors.white70,
+              size: 36,
+            ),
             const SizedBox(height: 8),
             Text(
-              isPermission ? 'Camera permission required' : 'Camera unavailable',
+              isPermission
+                  ? 'Camera permission required'
+                  : 'Camera unavailable',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
@@ -684,14 +761,19 @@ class _SessionActions extends StatelessWidget {
         );
       }
       if (state.needsNewSession) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
+        // A Wrap, not a Row: on a narrow screen the two controls stack instead
+        // of overflowing. Each button is hugged back to its own width first,
+        // because a button otherwise takes the full width of a wrap run and
+        // leaves no room for its neighbour.
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             FilledButton(
               onPressed: () => notifier.startSession(),
               child: Text('Start ${state.tripType.label} Session'),
             ),
-            const SizedBox(width: 8),
             PopupMenuButton<TripType>(
               tooltip: 'Select Trip',
               initialValue: state.tripType,
@@ -731,14 +813,15 @@ class _SessionActions extends StatelessWidget {
     }
     if (state.phase == AttendancePhase.active) {
       if (state.presentCount == 0) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             OutlinedButton(
               onPressed: () => notifier.discardSession(),
               child: const Text('Discard'),
             ),
-            const SizedBox(width: 8),
             FilledButton(
               onPressed: () => notifier.finishSession(),
               child: Text('Finish (${state.tripType.label})'),
@@ -760,14 +843,15 @@ class _SessionActions extends StatelessWidget {
       );
     }
     if (state.phase == AttendancePhase.finished) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           FilledButton(
             onPressed: () => notifier.startSession(),
             child: Text('Start ${state.tripType.label} Session'),
           ),
-          const SizedBox(width: 8),
           IconButton.outlined(
             tooltip: 'Reload',
             icon: const Icon(Icons.refresh),
