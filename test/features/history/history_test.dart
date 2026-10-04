@@ -204,6 +204,36 @@ void main() {
         expect(details.summary.absent, 1);
       },
     );
+
+    test(
+      'deleting a student purges them from historical roster snapshots and summaries',
+      () async {
+        final sessionId = await sessions.createOpen(
+          attendanceDate: DateTime(2026, 10, 3),
+          createdAt: DateTime(2026, 10, 3, 8),
+        );
+        final alice = await addStudent('24BMR016', name: 'Alice');
+        final bob = await addStudent('24BMR017', name: 'Bob');
+        await rosters.insertRoster(sessionId, [alice, bob]);
+        await records.markPresent(
+          sessionId: sessionId,
+          student: alice,
+          rawBarcode: '24BMR016',
+          scannedAt: DateTime(2026, 10, 3, 9),
+        );
+
+        // Delete Bob completely
+        await students.delete(bob.id);
+
+        final details = await container().read(
+          sessionDetailsProvider(sessionId).future,
+        );
+        expect(details.entries.map((e) => e.rollNo), ['24BMR016']);
+        expect(details.summary.total, 1);
+        expect(details.summary.present, 1);
+        expect(details.summary.absent, 0);
+      },
+    );
   });
 
   group('branching', () {

@@ -82,13 +82,18 @@ class StudentRepository {
   /// them.
   ///
   /// Both tables are touched in one transaction: a student can never be left
-  /// behind with their records already gone, nor records left pointing at a
-  /// student who no longer exists. Historical roster snapshots are deliberately
-  /// untouched, so past sessions keep the names they were taken with.
+  /// Deletes a student together with every attendance record and historical
+  /// roster entry that references them.
+  ///
+  /// All tables are touched in one transaction so a removed student is completely
+  /// purged without leaving ghost absent rows in historical rosters.
   Future<void> delete(int id) {
     return db.transaction(() async {
       await (db.delete(
         db.attendanceRecords,
+      )..where((t) => t.studentId.equals(id))).go();
+      await (db.delete(
+        db.attendanceSessionRoster,
       )..where((t) => t.studentId.equals(id))).go();
       await (db.delete(db.students)..where((t) => t.id.equals(id))).go();
     });
