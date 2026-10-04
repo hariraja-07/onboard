@@ -116,13 +116,22 @@ class AppTheme {
             ? const Color(0xFFD2E3FC)
             : const Color(0xFF263A63),
         elevation: 0,
-        labelTextStyle: WidgetStatePropertyAll(
-          TextStyle(
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final isSelected = states.contains(WidgetState.selected);
+          return TextStyle(
             fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: scheme.onSurfaceVariant,
-          ),
-        ),
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            color: isSelected ? onSurface : scheme.onSurfaceVariant,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final isSelected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            color: isSelected
+                ? (isLight ? scheme.primary : Colors.white)
+                : scheme.onSurfaceVariant,
+          );
+        }),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: scheme.surfaceContainerHighest,
@@ -134,10 +143,8 @@ class AppTheme {
       dialogTheme: DialogThemeData(backgroundColor: scheme.surface),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: isLight
-            ? const Color(0xFF303030)
-            : const Color(0xFF2C3444),
-        contentTextStyle: const TextStyle(color: Colors.white),
+        backgroundColor: scheme.inverseSurface,
+        contentTextStyle: TextStyle(color: scheme.onInverseSurface),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: scheme.primary,
@@ -147,14 +154,28 @@ class AppTheme {
         iconColor: scheme.onSurfaceVariant,
         textColor: onSurface,
       ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
       textTheme: TextTheme(
-        headlineSmall: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: onSurface,
-        ),
-        bodyLarge: TextStyle(fontSize: 16, color: onSurface),
-        bodyMedium: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
+        displayLarge: TextStyle(fontSize: 57, fontWeight: FontWeight.w400, color: onSurface),
+        displayMedium: TextStyle(fontSize: 45, fontWeight: FontWeight.w400, color: onSurface),
+        displaySmall: TextStyle(fontSize: 36, fontWeight: FontWeight.w400, color: onSurface),
+        headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w600, color: onSurface),
+        headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, color: onSurface),
+        headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: onSurface),
+        titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: onSurface),
+        titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: onSurface),
+        titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: onSurface),
+        bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: onSurface),
+        bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: onSurface),
+        bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w400, color: scheme.onSurfaceVariant),
+        labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: onSurface),
+        labelMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: onSurface),
+        labelSmall: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: scheme.onSurfaceVariant),
       ),
     );
   }
