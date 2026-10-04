@@ -33,11 +33,24 @@ class ImportedStudentDraft {
   final String boardingPoint;
 }
 
+/// Minimal existing student representation used for diffing during import.
+class ExistingStudentInfo {
+  const ExistingStudentInfo({
+    required this.rollNo,
+    required this.name,
+    required this.institution,
+    required this.boardingPoint,
+  });
+
+  final String rollNo;
+  final String name;
+  final String institution;
+  final String boardingPoint;
+}
+
 /// A row whose roll number already exists in the database.
 ///
-/// Existing students are never overwritten — this is reported so the user can
-/// see exactly which rows were skipped. Editing a changed name or boarding
-/// point stays a deliberate, manual action in the Students list.
+/// Can represent an unchanged student or one whose details have changed and can be updated.
 class ExistingStudentMatch {
   const ExistingStudentMatch({
     required this.rowNumber,
@@ -45,6 +58,10 @@ class ExistingStudentMatch {
     required this.name,
     required this.institution,
     required this.boardingPoint,
+    this.existingName,
+    this.existingInstitution,
+    this.existingBoardingPoint,
+    this.hasChanges = false,
   });
 
   final int rowNumber;
@@ -52,6 +69,10 @@ class ExistingStudentMatch {
   final String name;
   final String institution;
   final String boardingPoint;
+  final String? existingName;
+  final String? existingInstitution;
+  final String? existingBoardingPoint;
+  final bool hasChanges;
 }
 
 /// A row repeating a roll number that already appeared earlier in the same
@@ -145,7 +166,10 @@ class ImportPreview {
   /// rather than reported as invalid.
   final int skippedEmptyRows;
 
-  bool get canImport => newStudents.isNotEmpty;
+  List<ExistingStudentMatch> get updatedStudents =>
+      existing.where((e) => e.hasChanges).toList();
+
+  bool get canImport => newStudents.isNotEmpty || updatedStudents.isNotEmpty;
 
   int get skippedCount => existing.length + duplicates.length + invalid.length;
 }
@@ -156,6 +180,7 @@ class ImportSummary {
     required this.fileName,
     required this.sheetName,
     required this.added,
+    this.updated = 0,
     required this.existingSkipped,
     required this.duplicatesSkipped,
     required this.invalidSkipped,
@@ -164,6 +189,7 @@ class ImportSummary {
   final String fileName;
   final String sheetName;
   final int added;
+  final int updated;
   final int existingSkipped;
   final int duplicatesSkipped;
   final int invalidSkipped;

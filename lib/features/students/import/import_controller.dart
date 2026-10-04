@@ -114,13 +114,17 @@ class StudentImportController extends StateNotifier<ImportState> {
       return;
     }
 
-    // Normalising the stored values the same way the parser does is what makes
-    // the comparison case- and spacing-insensitive.
-    final storedRollNos = await _students.allRollNos();
-    final existing = storedRollNos
-        .map(ExcelImportService.normaliseRollNo)
-        .where((rollNo) => rollNo.isNotEmpty)
-        .toSet();
+    final allStudents = await _students.getAll();
+    final existingStudentsMap = <String, ExistingStudentInfo>{
+      for (final s in allStudents)
+        ExcelImportService.normaliseRollNo(s.rollNo): ExistingStudentInfo(
+          rollNo: ExcelImportService.normaliseRollNo(s.rollNo),
+          name: s.name,
+          institution: s.institution,
+          boardingPoint: s.boardingPoint,
+        ),
+    };
+    final existing = existingStudentsMap.keys.toSet();
 
     try {
       // Decoding a workbook is CPU bound and would visibly stall the frame, so
@@ -131,6 +135,7 @@ class StudentImportController extends StateNotifier<ImportState> {
           bytes: Uint8List.fromList(bytes),
           fileName: file.name,
           existingRollNos: existing,
+          existingStudents: existingStudentsMap,
         ),
       );
       state = ImportState(status: ImportStatus.preview, preview: preview);
@@ -147,8 +152,7 @@ class StudentImportController extends StateNotifier<ImportState> {
     }
   }
 
-  /// Writes the previewed rows. Existing students are never touched, so this
-  /// can only ever add rows.
+  /// Writes the previewed rows and applies updates to existing students.
   Future<void> confirmImport() async {
     final preview = state.preview;
     if (preview == null || !preview.canImport) return;
@@ -168,7 +172,32 @@ class StudentImportController extends StateNotifier<ImportState> {
     ];
 
     try {
-      await _students.insertAll(entries);
+      if (entries.isNotEmpty) {
+        await _students.insertAll(entries);
+      }
+
+      var updateCount = 0;
+      if (preview.updatedStudents.isNotEmpty) {
+        final allStudents = await _students.getAll();
+        final byRollNo = {
+          for (final s in allStudents)
+            ExcelImportService.normaliseRollNo(s.rollNo): s,
+        };
+        for (final match in preview.updatedStudents) {
+          final existingStudent = byRollNo[match.rollNo];
+          if (existingStudent != null) {
+            await _students.update(
+              id: existingStudent.id,
+              rollNo: existingStudent.rollNo,
+              name: match.name,
+              institution: match.institution,
+              boardingPoint: match.boardingPoint,
+            );
+            updateCount++;
+          }
+        }
+      }
+
       await _loadStudents();
       state = ImportState(
         status: ImportStatus.done,
@@ -176,17 +205,17 @@ class StudentImportController extends StateNotifier<ImportState> {
           fileName: preview.fileName,
           sheetName: preview.sheetName,
           added: entries.length,
-          existingSkipped: preview.existing.length,
+          updated: updateCount,
+          existingSkipped: preview.existing.length - updateCount,
           duplicatesSkipped: preview.duplicates.length,
           invalidSkipped: preview.invalid.length,
         ),
       );
     } catch (error) {
-      // The transaction rolled back, so nothing was written.
       state = ImportState(
         status: ImportStatus.failed,
         preview: preview,
-        errorMessage: 'Import failed, so no students were added.\n$error',
+        errorMessage: 'Import failed, so no students were changed.\n$error',
       );
     }
   }
@@ -223,11 +252,13 @@ class _ParseRequest {
     required this.bytes,
     required this.fileName,
     required this.existingRollNos,
+    this.existingStudents = const {},
   });
 
   final Uint8List bytes;
   final String fileName;
   final Set<String> existingRollNos;
+  final Map<String, ExistingStudentInfo> existingStudents;
 }
 
 ImportPreview _parseInBackground(_ParseRequest request) {
@@ -235,5 +266,6 @@ ImportPreview _parseInBackground(_ParseRequest request) {
     request.bytes,
     fileName: request.fileName,
     existingRollNos: request.existingRollNos,
+    existingStudents: request.existingStudents,
   );
 }

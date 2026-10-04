@@ -54,6 +54,7 @@ void main() {
   ImportPreview parse(
     List<List<dynamic>> rows, {
     Set<String> existing = const {},
+    Map<String, ExistingStudentInfo> existingStudents = const {},
     String sheetName = 'Students',
     String? defaultSheetName,
   }) {
@@ -65,6 +66,7 @@ void main() {
       ),
       fileName: 'roster.xlsx',
       existingRollNos: existing,
+      existingStudents: existingStudents,
     );
   }
 
@@ -444,6 +446,39 @@ void main() {
       );
 
       expect(preview.canImport, isFalse);
+    });
+
+    test('detects changed details for existing students and marks hasChanges', () {
+      final preview = parse(
+        [
+          _standardHeader,
+          ['1', 'B-1', '101', 'Asha Rao Updated', 'Green Valley', 'I', 'South Gate'],
+          ['2', 'B-1', '102', 'Bilal Khan', 'Green Valley', 'I', 'South Gate'],
+        ],
+        existing: {'101', '102'},
+        existingStudents: {
+          '101': const ExistingStudentInfo(
+            rollNo: '101',
+            name: 'Asha Rao',
+            institution: 'Green Valley',
+            boardingPoint: 'North Gate',
+          ),
+          '102': const ExistingStudentInfo(
+            rollNo: '102',
+            name: 'Bilal Khan',
+            institution: 'Green Valley',
+            boardingPoint: 'South Gate',
+          ),
+        },
+      );
+
+      expect(preview.existing, hasLength(2));
+      expect(preview.updatedStudents, hasLength(1));
+      expect(preview.updatedStudents.single.rollNo, '101');
+      expect(preview.updatedStudents.single.hasChanges, isTrue);
+      expect(preview.updatedStudents.single.existingName, 'Asha Rao');
+      expect(preview.updatedStudents.single.name, 'Asha Rao Updated');
+      expect(preview.canImport, isTrue);
     });
   });
 

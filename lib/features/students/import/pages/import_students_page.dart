@@ -239,7 +239,9 @@ class _PreviewViewState extends State<_PreviewView>
                         name: match.name,
                         institution: match.institution,
                         boardingPoint: match.boardingPoint,
-                        note: 'Already in OnBoard — will not be changed',
+                        note: match.hasChanges
+                            ? 'Update available (details differ)'
+                            : 'Already in OnBoard — no changes',
                       ),
                     )
                     .toList(),
@@ -532,15 +534,19 @@ class _ConfirmBar extends StatelessWidget {
           children: [
             Text(
               preview.canImport
-                  ? 'Add ${preview.newStudents.length} new '
-                        '${preview.newStudents.length == 1 ? 'student' : 'students'}?'
-                  : 'Nothing new to add',
+                  ? [
+                      if (preview.newStudents.isNotEmpty)
+                        'Add ${preview.newStudents.length} new ${preview.newStudents.length == 1 ? "student" : "students"}',
+                      if (preview.updatedStudents.isNotEmpty)
+                        'Update ${preview.updatedStudents.length} existing ${preview.updatedStudents.length == 1 ? "student" : "students"}',
+                    ].join(' and ') + '?'
+                  : 'Nothing to add or update',
               style: theme.textTheme.titleSmall,
             ),
             if (skipped > 0)
               Text(
                 '$skipped ${skipped == 1 ? 'row' : 'rows'} will be skipped: '
-                '${preview.existing.length} already in OnBoard, '
+                '${preview.existing.length - preview.updatedStudents.length} unchanged in OnBoard, '
                 '${preview.duplicates.length} duplicate roll no, '
                 '${preview.invalid.length} invalid.',
                 style: theme.textTheme.bodySmall,
@@ -574,17 +580,18 @@ class _ConfirmBar extends StatelessWidget {
   }
 
   Future<void> _confirm(BuildContext context) async {
-    final count = preview.newStudents.length;
+    final newCount = preview.newStudents.length;
+    final updateCount = preview.updatedStudents.length;
+    final parts = [
+      if (newCount > 0) 'add $newCount new ${newCount == 1 ? "student" : "students"}',
+      if (updateCount > 0) 'update $updateCount existing ${updateCount == 1 ? "student" : "students"}',
+    ].join(' and ');
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Import $count ${count == 1 ? 'student' : 'students'}?'),
-        content: Text(
-          count == 1
-              ? 'This will add the student to your list.'
-              : 'This will add $count students to your list.',
-        ),
+        title: const Text('Confirm Import'),
+        content: Text('This will $parts in your directory.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -640,10 +647,17 @@ class _ResultView extends ConsumerWidget {
               label: 'Added',
               value: summary.added,
             ),
+            if (summary.updated > 0)
+              _ResultTile(
+                icon: Icons.edit_note,
+                color: theme.colorScheme.secondary,
+                label: 'Updated',
+                value: summary.updated,
+              ),
             _ResultTile(
               icon: Icons.person_off_outlined,
               color: theme.colorScheme.tertiary,
-              label: 'Skipped, already in OnBoard',
+              label: 'Skipped, unchanged in OnBoard',
               value: summary.existingSkipped,
             ),
             _ResultTile(

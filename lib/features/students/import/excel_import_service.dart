@@ -114,6 +114,7 @@ class ExcelImportService {
     Uint8List bytes, {
     required String fileName,
     required Set<String> existingRollNos,
+    Map<String, ExistingStudentInfo> existingStudents = const {},
   }) {
     if (bytes.isEmpty) {
       throw const ExcelImportException('That file is empty.');
@@ -154,6 +155,7 @@ class ExcelImportService {
       excel.tables[located.sheetName]!,
       fileName: fileName,
       existingRollNos: existingRollNos,
+      existingStudents: existingStudents,
       located: located,
     );
   }
@@ -238,6 +240,7 @@ class ExcelImportService {
     Sheet sheet, {
     required String fileName,
     required Set<String> existingRollNos,
+    Map<String, ExistingStudentInfo> existingStudents = const {},
     required _HeaderLocation located,
   }) {
     final rows = sheet.rows;
@@ -347,8 +350,11 @@ class ExcelImportService {
       seenRollNos[rollNo] = excelRowNumber;
 
       if (existingRollNos.contains(rollNo)) {
-        // Deliberately read-only. Existing students are reported and skipped;
-        // OnBoard never overwrites a record through an import.
+        final current = existingStudents[rollNo];
+        final hasChanges = current != null &&
+            (current.name != name ||
+                current.institution != institution ||
+                current.boardingPoint != boardingPoint);
         existing.add(
           ExistingStudentMatch(
             rowNumber: excelRowNumber,
@@ -356,6 +362,10 @@ class ExcelImportService {
             name: name,
             institution: institution,
             boardingPoint: boardingPoint,
+            existingName: current?.name,
+            existingInstitution: current?.institution,
+            existingBoardingPoint: current?.boardingPoint,
+            hasChanges: hasChanges,
           ),
         );
         continue;
