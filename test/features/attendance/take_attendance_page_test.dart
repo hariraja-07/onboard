@@ -10,7 +10,6 @@ import 'package:onboard/core/database/repositories/attendance_session_roster_rep
 import 'package:onboard/core/database/repositories/student_repository.dart';
 import 'package:onboard/features/attendance/attendance_controller.dart';
 import 'package:onboard/features/attendance/barcode/barcode_service.dart';
-import 'package:onboard/features/attendance/models/attendance_models.dart';
 import 'package:onboard/features/attendance/pages/take_attendance_page.dart';
 
 void main() {

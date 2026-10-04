@@ -167,81 +167,93 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: SegmentedButton<AttendanceFilter>(
-                        segments: const [
-                          ButtonSegment(
-                            value: AttendanceFilter.all,
-                            label: Text('All'),
-                          ),
-                          ButtonSegment(
-                            value: AttendanceFilter.present,
-                            label: Text('Present'),
-                          ),
-                          ButtonSegment(
-                            value: AttendanceFilter.absent,
-                            label: Text('Absent'),
-                          ),
-                        ],
-                        selected: {_filter},
-                        onSelectionChanged: (s) {
-                          if (s.isNotEmpty) {
-                            setState(() => _filter = s.first);
-                          }
-                        },
+                TextField(
+                  controller: _search,
+                  textInputAction: state.isActive
+                      ? TextInputAction.send
+                      : TextInputAction.search,
+                  onSubmitted: (value) {
+                    final text = value.trim();
+                    if (state.isActive && text.isNotEmpty) {
+                      notifier.submitBarcode(text);
+                      _search.clear();
+                    }
+                  },
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search),
+                    hintText: state.isActive
+                        ? 'Search or enter barcode'
+                        : 'Search roll no or name',
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    suffixIcon: state.isActive &&
+                            _search.text.trim().isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.send_rounded),
+                            tooltip: 'Submit barcode',
+                            onPressed: () {
+                              final text = _search.text.trim();
+                              if (text.isNotEmpty) {
+                                notifier.submitBarcode(text);
+                                _search.clear();
+                              }
+                            },
+                          )
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<AttendanceFilter>(
+                    segments: const [
+                      ButtonSegment(
+                        value: AttendanceFilter.all,
+                        label: Text('All'),
                       ),
+                      ButtonSegment(
+                        value: AttendanceFilter.present,
+                        label: Text('Present'),
+                      ),
+                      ButtonSegment(
+                        value: AttendanceFilter.absent,
+                        label: Text('Absent'),
+                      ),
+                    ],
+                    selected: {_filter},
+                    onSelectionChanged: (s) {
+                      if (s.isNotEmpty) {
+                        setState(() => _filter = s.first);
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: _SessionActions(state: state, notifier: notifier),
                     ),
                     const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _search,
-                        textInputAction: state.isActive
-                            ? TextInputAction.send
-                            : TextInputAction.search,
-                        onSubmitted: (value) {
-                          final text = value.trim();
-                          if (state.isActive && text.isNotEmpty) {
-                            notifier.submitBarcode(text);
-                            _search.clear();
-                          }
-                        },
-                        decoration: InputDecoration(
-                          prefixIcon: const Icon(Icons.search),
-                          hintText: state.isActive
-                              ? 'Search or enter barcode'
-                              : 'Search roll no or name',
-                          suffixIcon: state.isActive &&
-                                  _search.text.trim().isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.send_rounded),
-                                  tooltip: 'Submit barcode',
-                                  onPressed: () {
-                                    final text = _search.text.trim();
-                                    if (text.isNotEmpty) {
-                                      notifier.submitBarcode(text);
-                                      _search.clear();
-                                    }
-                                  },
-                                )
-                              : null,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${state.presentCount}/${state.totalCount} • ${state.attendancePercent.toStringAsFixed(0)}%',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    _SessionActions(state: state, notifier: notifier),
-                    Text(
-                      '${state.presentCount}/${state.totalCount} • ${state.attendancePercent.toStringAsFixed(0)}%',
-                      style: theme.textTheme.bodyMedium,
                     ),
                   ],
                 ),
