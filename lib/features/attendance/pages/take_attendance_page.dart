@@ -52,6 +52,8 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
   }
 
   void _onDetect(BarcodeCapture capture) {
+    final state = ref.read(attendanceControllerProvider);
+    if (!state.isActive) return;
     for (final barcode in capture.barcodes) {
       final raw = barcode.rawValue;
       if (raw != null && raw.isNotEmpty) {
@@ -134,6 +136,7 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
             ),
           _CameraSection(
             controller: _scanner,
+            isActive: state.isActive,
             onDetect: _onDetect,
             onToggleTorch: _toggleTorch,
             onFlipCamera: _flipCamera,
@@ -214,12 +217,14 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
 class _CameraSection extends StatelessWidget {
   const _CameraSection({
     required this.controller,
+    required this.isActive,
     required this.onDetect,
     required this.onToggleTorch,
     required this.onFlipCamera,
   });
 
   final MobileScannerController controller;
+  final bool isActive;
   final void Function(BarcodeCapture capture) onDetect;
   final VoidCallback onToggleTorch;
   final VoidCallback onFlipCamera;
@@ -235,6 +240,56 @@ class _CameraSection extends StatelessWidget {
             controller: controller,
             onDetect: onDetect,
             errorBuilder: (context, error, _) => _CameraError(error: error),
+          ),
+          if (!isActive)
+            Container(
+              color: Colors.black54,
+              alignment: Alignment.center,
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.pause_circle_outline, color: Colors.white70),
+                  SizedBox(width: 8),
+                  Text(
+                    'Scanner paused (session inactive)',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
+          Positioned(
+            right: 12,
+            bottom: 12,
+            child: ValueListenableBuilder<TorchState>(
+              valueListenable: controller.torchState,
+              builder: (context, torchState, _) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ValueListenableBuilder<bool?>(
+                      valueListenable: controller.hasTorchState,
+                      builder: (context, hasTorch, _) => hasTorch == true
+                          ? IconButton.filledTonal(
+                              icon: Icon(
+                                torchState == TorchState.on
+                                    ? Icons.flashlight_on
+                                    : Icons.flashlight_off,
+                              ),
+                              tooltip: 'Toggle torch',
+                              onPressed: onToggleTorch,
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filledTonal(
+                      icon: const Icon(Icons.cameraswitch_outlined),
+                      tooltip: 'Switch camera',
+                      onPressed: onFlipCamera,
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         ],
       ),
