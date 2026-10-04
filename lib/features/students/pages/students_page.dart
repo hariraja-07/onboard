@@ -270,10 +270,11 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
       itemCount: students.length,
       itemBuilder: (context, index) {
         final student = students[index];
+        final theme = Theme.of(context);
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
@@ -281,8 +282,9 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
               horizontal: 16,
               vertical: 8,
             ),
+            onTap: () => _showStudentForm(context, student: student),
             title: Text(
-              student.rollNo,
+              student.name,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             subtitle: Column(
@@ -290,37 +292,26 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
               children: [
                 const SizedBox(height: 4),
                 Text(
-                  student.name,
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  '${student.rollNo} • ${student.boardingPoint}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-                Text(
-                  student.institution,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                Text(
-                  student.boardingPoint,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+                if (student.institution.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      student.institution,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
               ],
             ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit, size: 20),
-                  onPressed: () => _showStudentForm(context, student: student),
-                  tooltip: 'Edit',
-                ),
-                IconButton(
-                  icon: Icon(
-                    Icons.delete,
-                    size: 20,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                  onPressed: () => _confirmDelete(context, student.id),
-                  tooltip: 'Delete',
-                ),
-              ],
+            trailing: IconButton(
+              icon: const Icon(Icons.edit_outlined, size: 20),
+              onPressed: () => _showStudentForm(context, student: student),
+              tooltip: 'Edit',
             ),
           ),
         );
@@ -330,6 +321,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
 
   void _showStudentForm(BuildContext context, {Student? student}) {
     final isEditing = student != null;
+    final formKey = GlobalKey<FormState>();
     final rollNoCtrl = TextEditingController(text: student?.rollNo ?? '');
     final nameCtrl = TextEditingController(text: student?.name ?? '');
     final institutionCtrl = TextEditingController(
@@ -351,6 +343,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
             MediaQuery.of(ctx).viewInsets.bottom + 16,
           ),
           child: Form(
+            key: formKey,
             child: ListView(
               shrinkWrap: true,
               children: [
@@ -367,7 +360,9 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                   ),
                   textCapitalization: TextCapitalization.characters,
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Required';
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Roll number is required';
+                    }
                     return null;
                   },
                 ),
@@ -379,7 +374,9 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                     border: OutlineInputBorder(),
                   ),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Required';
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Name is required';
+                    }
                     return null;
                   },
                 ),
@@ -391,7 +388,9 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                     border: OutlineInputBorder(),
                   ),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Required';
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Institution is required';
+                    }
                     return null;
                   },
                 ),
@@ -403,27 +402,23 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                     border: OutlineInputBorder(),
                   ),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Required';
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Boarding point is required';
+                    }
                     return null;
                   },
                 ),
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: () async {
+                    if (!formKey.currentState!.validate()) {
+                      return;
+                    }
+
                     final rollNo = rollNoCtrl.text.trim();
                     final name = nameCtrl.text.trim();
                     final institution = institutionCtrl.text.trim();
                     final boardingPoint = boardingPointCtrl.text.trim();
-
-                    if (rollNo.isEmpty ||
-                        name.isEmpty ||
-                        institution.isEmpty ||
-                        boardingPoint.isEmpty) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(content: Text('Please fill all fields')),
-                      );
-                      return;
-                    }
 
                     final notifier = ref.read(studentsProvider.notifier);
                     bool success;
