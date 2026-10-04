@@ -136,6 +136,7 @@ void main() {
 
       expect(absences.single.name, 'Alice Original');
       expect(absences.single.rollNo, '24BMR016');
+      expect(absences.single.tripType, TripType.morning);
     });
   });
 
@@ -151,6 +152,8 @@ void main() {
       expect(csv, contains('Attendance %'));
       expect(csv, contains('24BMR017'));
       expect(csv, contains('Absences'));
+      expect(csv, contains('Date,Trip,Session ID,Roll No,Name,Boarding Point'));
+      expect(csv, contains('Morning'));
     });
 
     test('Excel export produces a non-empty workbook', () async {

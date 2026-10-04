@@ -304,11 +304,18 @@ class _SessionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final open = session.status == AttendanceSessionStatus.open;
+    final isMorning = session.tripType == TripType.morning;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         onTap: () => context.push('/history/${session.sessionId}'),
-        title: Text(formatDate(session.attendanceDate)),
+        leading: Icon(
+          isMorning ? Icons.wb_sunny_outlined : Icons.nights_stay_outlined,
+          color: theme.colorScheme.primary,
+        ),
+        title: Text(
+          '${formatDate(session.attendanceDate)} · ${session.tripType.label}',
+        ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 6),
           child: Column(
@@ -350,7 +357,7 @@ class _AbsenceTile extends StatelessWidget {
       leading: const Icon(Icons.person_off_outlined),
       title: Text('${absence.rollNo} · ${absence.name}'),
       subtitle: Text(
-        '${formatDate(absence.attendanceDate)} · ${absence.boardingPoint}',
+        '${formatDate(absence.attendanceDate)} · ${absence.tripType.label} · ${absence.boardingPoint}',
       ),
     );
   }

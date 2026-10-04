@@ -13,6 +13,7 @@ class ReportAbsence {
   const ReportAbsence({
     required this.sessionId,
     required this.attendanceDate,
+    this.tripType = TripType.morning,
     required this.rollNo,
     required this.name,
     required this.boardingPoint,
@@ -20,6 +21,7 @@ class ReportAbsence {
 
   final int sessionId;
   final DateTime attendanceDate;
+  final TripType tripType;
   final String rollNo;
   final String name;
   final String boardingPoint;
@@ -146,7 +148,7 @@ class ReportService {
     final whereClause = where.isEmpty ? '' : 'AND ${where.join(' AND ')}';
 
     final rows = await db.customSelect('''
-SELECT r.session_id, s.attendance_date, r.roll_no, r.name, r.boarding_point
+SELECT r.session_id, s.attendance_date, s.trip_type, r.roll_no, r.name, r.boarding_point
 FROM attendance_session_roster r
 JOIN attendance_sessions s ON s.id = r.session_id
 LEFT JOIN attendance_records ar
@@ -161,6 +163,7 @@ ORDER BY s.attendance_date DESC, r.roll_no ASC
         ReportAbsence(
           sessionId: row.read<int>('session_id'),
           attendanceDate: row.read<DateTime>('attendance_date'),
+          tripType: TripType.fromWireValue(row.read<String>('trip_type')),
           rollNo: row.read<String>('roll_no'),
           name: row.read<String>('name'),
           boardingPoint: row.read<String>('boarding_point'),
@@ -213,11 +216,12 @@ ORDER BY s.attendance_date DESC, r.roll_no ASC
     _writeSheet(
       excel,
       absencesSheet,
-      const ['Date', 'Session ID', 'Roll No', 'Name', 'Boarding Point'],
+      const ['Date', 'Trip', 'Session ID', 'Roll No', 'Name', 'Boarding Point'],
       [
         for (final a in bundle.absences)
           [
             formatDate(a.attendanceDate),
+            a.tripType.label,
             '${a.sessionId}',
             a.rollNo,
             a.name,
@@ -260,10 +264,11 @@ ORDER BY s.attendance_date DESC, r.roll_no ASC
         ],
       [],
       ['Absences'],
-      ['Date', 'Session ID', 'Roll No', 'Name', 'Boarding Point'],
+      ['Date', 'Trip', 'Session ID', 'Roll No', 'Name', 'Boarding Point'],
       for (final a in bundle.absences)
         [
           formatDate(a.attendanceDate),
+          a.tripType.label,
           '${a.sessionId}',
           a.rollNo,
           a.name,
