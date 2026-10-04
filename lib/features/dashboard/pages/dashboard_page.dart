@@ -62,9 +62,9 @@ class _TodayCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final session = data.latestToday;
+    final sessions = data.todaySessions;
 
-    if (session == null) {
+    if (sessions.isEmpty) {
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -86,7 +86,9 @@ class _TodayCard extends StatelessWidget {
       );
     }
 
-    final ratio = session.total == 0 ? 0.0 : session.present / session.total;
+    final morning = data.morningToday;
+    final evening = data.eveningToday;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -98,39 +100,92 @@ class _TodayCard extends StatelessWidget {
                 Expanded(
                   child: Text('Today', style: theme.textTheme.titleMedium),
                 ),
+                Text(
+                  '${sessions.length} session${sessions.length == 1 ? '' : 's'}',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (morning != null) ...[
+              _TripProgressRow(session: morning),
+              const SizedBox(height: 12),
+            ],
+            if (evening != null) ...[
+              _TripProgressRow(session: evening),
+              const SizedBox(height: 12),
+            ],
+            Row(
+              children: [
+                FilledButton.icon(
+                  onPressed: () => context.go('/attendance'),
+                  icon: const Icon(Icons.qr_code_scanner_outlined),
+                  label: const Text('Take attendance'),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton(
+                  onPressed: () => context.go('/history'),
+                  child: const Text('View history'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TripProgressRow extends StatelessWidget {
+  const _TripProgressRow({required this.session});
+
+  final AttendanceSessionSummary session;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isMorning = session.tripType == TripType.morning;
+    final ratio = session.total == 0 ? 0.0 : session.present / session.total;
+
+    return InkWell(
+      onTap: () => context.push('/history/${session.sessionId}'),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isMorning ? Icons.wb_sunny_outlined : Icons.nights_stay_outlined,
+                  size: 16,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '${session.tripType.label} Trip',
+                  style: theme.textTheme.titleSmall,
+                ),
+                const Spacer(),
                 Chip(
                   label: Text(
                     session.status == AttendanceSessionStatus.open
                         ? 'Open'
                         : 'Completed',
                   ),
+                  visualDensity: VisualDensity.compact,
                   side: BorderSide.none,
                 ),
+                const SizedBox(width: 8),
+                Text(
+                  '${session.present}/${session.total} (${session.percent.toStringAsFixed(0)}%)',
+                  style: theme.textTheme.bodyMedium,
+                ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              '${session.present}/${session.total} present',
-              style: theme.textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
             LinearProgressIndicator(value: ratio),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                FilledButton.icon(
-                  onPressed: () => context.go('/attendance'),
-                  icon: const Icon(Icons.qr_code_scanner_outlined),
-                  label: const Text('Continue'),
-                ),
-                const SizedBox(width: 12),
-                OutlinedButton(
-                  onPressed: () =>
-                      context.push('/history/${session.sessionId}'),
-                  child: const Text('View details'),
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -265,12 +320,17 @@ class _RecentSessionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMorning = session.tripType == TripType.morning;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         onTap: () => context.push('/history/${session.sessionId}'),
-        leading: const Icon(Icons.event_note_outlined),
-        title: Text(formatDate(session.attendanceDate)),
+        leading: Icon(
+          isMorning ? Icons.wb_sunny_outlined : Icons.nights_stay_outlined,
+        ),
+        title: Text(
+          '${formatDate(session.attendanceDate)} · ${session.tripType.label}',
+        ),
         subtitle: Text(
           '${session.present}/${session.total} present · '
           '${session.percent.toStringAsFixed(1)}%',

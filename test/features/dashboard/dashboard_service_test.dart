@@ -90,4 +90,39 @@ void main() {
     expect(data.recentSessions.first.sessionId, todays);
     expect(data.hasAttendance, isTrue);
   });
+
+  test('surfaces both morning and evening trips for today', () async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final alice = await addStudent('24BMR016', 'Alice');
+
+    final morning = await sessions.createOpen(
+      attendanceDate: today,
+      tripType: 'morning',
+      createdAt: today.add(const Duration(hours: 8)),
+    );
+    await rosters.insertRoster(morning, [alice]);
+    await records.markPresent(
+      sessionId: morning,
+      student: alice,
+      rawBarcode: '24BMR016',
+      scannedAt: today.add(const Duration(hours: 8, minutes: 15)),
+    );
+    await sessions.complete(morning);
+
+    final evening = await sessions.createOpen(
+      attendanceDate: today,
+      tripType: 'evening',
+      createdAt: today.add(const Duration(hours: 16)),
+    );
+    await rosters.insertRoster(evening, [alice]);
+
+    final data = await dashboard.load();
+
+    expect(data.todaySessions, hasLength(2));
+    expect(data.morningToday?.sessionId, morning);
+    expect(data.eveningToday?.sessionId, evening);
+    expect(data.morningToday?.status, AttendanceSessionStatus.completed);
+    expect(data.eveningToday?.status, AttendanceSessionStatus.open);
+  });
 }

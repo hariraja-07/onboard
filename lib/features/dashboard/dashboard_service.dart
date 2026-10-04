@@ -28,6 +28,22 @@ class DashboardData {
   /// The most recent session today, or null if none was taken.
   AttendanceSessionSummary? get latestToday =>
       todaySessions.isEmpty ? null : todaySessions.first;
+
+  /// Morning session today, if any.
+  AttendanceSessionSummary? get morningToday {
+    for (final s in todaySessions) {
+      if (s.tripType == TripType.morning) return s;
+    }
+    return null;
+  }
+
+  /// Evening session today, if any.
+  AttendanceSessionSummary? get eveningToday {
+    for (final s in todaySessions) {
+      if (s.tripType == TripType.evening) return s;
+    }
+    return null;
+  }
 }
 
 final dashboardServiceProvider = Provider<DashboardService>((ref) {
