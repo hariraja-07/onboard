@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../attendance/models/attendance_models.dart';
 import '../history_controller.dart';
+import '../widgets/delete_session_dialog.dart';
 
 /// Frozen roster for one attendance session.
 ///
@@ -38,12 +40,37 @@ class _AttendanceSessionDetailsPageState
     super.dispose();
   }
 
+  /// Deletes the session on screen and leaves it, since there is nothing left
+  /// here to show once it is gone.
+  Future<void> _deleteSession(
+    BuildContext context,
+    WidgetRef ref,
+    AttendanceSessionDetails details,
+  ) async {
+    final deleted = await confirmDeleteSession(context, ref, details.summary);
+    if (deleted && context.mounted && context.canPop()) {
+      context.pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final details = ref.watch(sessionDetailsProvider(widget.sessionId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Session Details')),
+      appBar: AppBar(
+        title: const Text('Session Details'),
+        actions: [
+          // Only offered once the summary is known, because the confirmation
+          // names the date and trip and counts the records.
+          if (details.hasValue)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Delete session',
+              onPressed: () => _deleteSession(context, ref, details.requireValue),
+            ),
+        ],
+      ),
       body: details.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
@@ -111,7 +138,7 @@ class _DetailsBody extends StatelessWidget {
           child: Row(
             children: [
               Text(
-                _formatDate(summary.attendanceDate),
+                formatHistoryDate(summary.attendanceDate),
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(width: 12),
@@ -280,13 +307,6 @@ class _DetailsBody extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  static String _formatDate(DateTime date) {
-    final local = date.toLocal();
-    final month = local.month.toString().padLeft(2, '0');
-    final day = local.day.toString().padLeft(2, '0');
-    return '${local.year}-$month-$day';
   }
 
   static String _formatTime(DateTime? time) {

@@ -9,6 +9,12 @@ import '../../core/export/data_export_service.dart';
 import '../history/history_controller.dart';
 import '../students/students_controller.dart';
 import 'backup_file_gateway.dart';
+import 'safety_backup.dart';
+
+// The two providers live with the safety-backup helper rather than here,
+// because the History screen needs them too and this file already imports
+// History, which would make that an import cycle.
+export 'safety_backup.dart' show backupServiceProvider, backupFileGatewayProvider;
 
 /// Where the data-management screen currently is.
 enum DataManagementStatus {
@@ -58,15 +64,6 @@ class DataManagementState {
   bool get isBusy => status == DataManagementStatus.working;
   bool get hasPendingRestore => pendingBackup != null && pendingInfo != null;
 }
-
-/// Lets tests swap the real picker/disk for a fake.
-final backupFileGatewayProvider = Provider<BackupFileGateway>((ref) {
-  return const FilePickerBackupGateway();
-});
-
-final backupServiceProvider = Provider<BackupService>((ref) {
-  return BackupService(ref.watch(databaseProvider));
-});
 
 final dataExportServiceProvider = Provider<DataExportService>((ref) {
   return DataExportService(ref.watch(databaseProvider));
@@ -266,13 +263,6 @@ class DataManagementController extends StateNotifier<DataManagementState> {
   /// Clears a shown message or error line.
   void acknowledge() => state = const DataManagementState();
 
-  Future<String> _writeSafetyBackup() async {
-    final now = DateTime.now();
-    final data = await _backup.snapshot();
-    return _gateway.writeSafetyBackup(
-      _backup.encode(data),
-      'onboard_safety_backup_${formatTimestamp(now)}.'
-      '${BackupService.fileExtension}',
-    );
-  }
+  Future<String> _writeSafetyBackup() =>
+      writeSafetyBackup(_backup, _gateway);
 }

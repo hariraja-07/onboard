@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../attendance/models/attendance_models.dart';
 import '../history_controller.dart';
+import '../widgets/delete_session_dialog.dart';
 
 /// Attendance History list.
 ///
@@ -64,7 +65,11 @@ class AttendanceHistoryPage extends ConsumerWidget {
               itemCount: sessions.length,
               itemBuilder: (context, index) {
                 final session = sessions[index];
-                return _SessionCard(session: session);
+                return _SessionCard(
+                  session: session,
+                  onDelete: () =>
+                      confirmDeleteSession(context, ref, session),
+                );
               },
             ),
           );
@@ -72,19 +77,17 @@ class AttendanceHistoryPage extends ConsumerWidget {
       ),
     );
   }
-
-  static String _formatDate(DateTime date) {
-    final local = date.toLocal();
-    final month = local.month.toString().padLeft(2, '0');
-    final day = local.day.toString().padLeft(2, '0');
-    return '${local.year}-$month-$day';
-  }
 }
 
 class _SessionCard extends StatelessWidget {
-  const _SessionCard({required this.session});
+  const _SessionCard({required this.session, required this.onDelete});
 
   final AttendanceSessionSummary session;
+
+  /// Runs the confirmed delete. Passed in rather than read from a provider so
+  /// the card stays a plain widget and this widget stays the only place that
+  /// knows about dialogs and snackbars.
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -114,13 +117,33 @@ class _SessionCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '${AttendanceHistoryPage._formatDate(session.attendanceDate)} · ${session.tripType.label}',
+                      '${formatHistoryDate(session.attendanceDate)} · ${session.tripType.label}',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                   _StatusChip(status: session.status),
+                  // Sits inside the card's own InkWell, so that the delete
+                  // route is reachable without leaving the list.
+                  PopupMenuButton<_SessionAction>(
+                    tooltip: 'Session actions',
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    onSelected: (action) {
+                      if (action == _SessionAction.delete) onDelete();
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: _SessionAction.delete,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.delete_outline),
+                          title: Text('Delete session'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -190,6 +213,8 @@ class _SessionCard extends StatelessWidget {
   }
 }
 
+
+enum _SessionAction { delete }
 
 class _StatusChip extends StatelessWidget {
   const _StatusChip({required this.status});

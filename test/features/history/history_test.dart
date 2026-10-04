@@ -1,7 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:onboard/core/backup/backup_service.dart';
 import 'package:onboard/core/database/database.dart';
 import 'package:onboard/core/database/providers.dart';
 import 'package:onboard/core/database/repositories/attendance_record_repository.dart';
@@ -11,6 +15,9 @@ import 'package:onboard/core/database/repositories/student_repository.dart';
 import 'package:onboard/features/attendance/models/attendance_models.dart';
 import 'package:onboard/features/history/history_controller.dart';
 import 'package:onboard/features/history/pages/history_page.dart';
+import 'package:onboard/features/history/pages/session_details_page.dart';
+import 'package:onboard/features/settings/backup_file_gateway.dart';
+import 'package:onboard/features/settings/safety_backup.dart';
 
 void main() {
   late AppDatabase db;
@@ -377,4 +384,292 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
+
+  group('deleting a session', () {
+    /// A session with one marked student, so a delete has records to cascade.
+    Future<int> seedMarkedSession() async {
+      final sessionId = await sessions.createOpen(
+        attendanceDate: DateTime(2026, 10, 3),
+        tripType: 'morning',
+        createdAt: DateTime(2026, 10, 3, 8),
+      );
+      final alice = await addStudent('24BMR016', name: 'Alice');
+      final bob = await addStudent('24BMR017', name: 'Bob');
+      await rosters.insertRoster(sessionId, [alice, bob]);
+      await records.markPresent(
+        sessionId: sessionId,
+        student: alice,
+        rawBarcode: '24BMR016',
+        scannedAt: DateTime(2026, 10, 3, 9),
+      );
+      await sessions.complete(sessionId);
+      return sessionId;
+    }
+
+    ProviderContainer mutationContainer(FakeGateway gateway) {
+      final value = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          attendanceSessionRepositoryProvider.overrideWithValue(sessions),
+          attendanceRecordRepositoryProvider.overrideWithValue(records),
+          attendanceSessionRosterRepositoryProvider.overrideWithValue(rosters),
+          backupServiceProvider.overrideWith((ref) => BackupService(db)),
+          backupFileGatewayProvider.overrideWithValue(gateway),
+        ],
+      );
+      addTearDown(value.dispose);
+      return value;
+    }
+
+    test('removes the session with its records and roster snapshot', () async {
+      final sessionId = await seedMarkedSession();
+      final summary = (await sessions.listSessions()).single;
+      expect(summary.present, 1);
+
+      final gateway = FakeGateway();
+      final result = await mutationContainer(gateway)
+          .read(historyMutationProvider.notifier)
+          .deleteSession(summary);
+
+      expect(result.error, isNull);
+      expect(result.message, contains('Deleted the Morning session'));
+      expect(result.message, contains('2026-10-03'));
+      expect(await sessions.findById(sessionId), isNull);
+      expect(await records.forSession(sessionId), isEmpty);
+      expect(await rosters.getRoster(sessionId), isEmpty);
+      expect(await sessions.listSessions(), isEmpty);
+    });
+
+    test('writes the safety copy before anything is deleted', () async {
+      final sessionId = await seedMarkedSession();
+      final summary = (await sessions.listSessions()).single;
+      var existedWhenBackupWasWritten = false;
+
+      final gateway = FakeGateway(
+        onWrite: () async {
+          existedWhenBackupWasWritten = await sessions.findById(sessionId) != null;
+        },
+      );
+      await mutationContainer(gateway)
+          .read(historyMutationProvider.notifier)
+          .deleteSession(summary);
+
+      expect(gateway.safetyWrites, 1);
+      expect(
+        existedWhenBackupWasWritten,
+        isTrue,
+        reason: 'the safety copy must contain the session being deleted',
+      );
+      expect(gateway.safetyBytes, isNotNull);
+      expect(await sessions.findById(sessionId), isNull);
+    });
+
+    test('keeps the session when the safety copy cannot be written', () async {
+      final sessionId = await seedMarkedSession();
+      final summary = (await sessions.listSessions()).single;
+      final gateway = FakeGateway()..safetyBackupThrows = true;
+
+      final result = await mutationContainer(gateway)
+          .read(historyMutationProvider.notifier)
+          .deleteSession(summary);
+
+      expect(result.message, isNull);
+      expect(result.error, contains('nothing was changed'));
+      expect(result.error, contains('no space left on device'));
+      expect(await sessions.findById(sessionId), isNotNull);
+      expect(await records.forSession(sessionId), hasLength(1));
+    });
+
+    testWidgets('asks first, and cancelling leaves the session alone', (
+      tester,
+    ) async {
+      final sessionId = await seedMarkedSession();
+      final gateway = FakeGateway();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            attendanceSessionRepositoryProvider.overrideWithValue(sessions),
+            attendanceRecordRepositoryProvider.overrideWithValue(records),
+            attendanceSessionRosterRepositoryProvider.overrideWithValue(rosters),
+            backupServiceProvider.overrideWith((ref) => BackupService(db)),
+            backupFileGatewayProvider.overrideWithValue(gateway),
+          ],
+          child: const MaterialApp(home: AttendanceHistoryPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Session actions'));
+      await tester.pumpAndSettle();
+      expect(find.text('Delete session'), findsOneWidget);
+
+      await tester.tap(find.text('Delete session'));
+      await tester.pumpAndSettle();
+
+      // The confirmation has to name the session and say what goes with it.
+      expect(find.text('Delete this session?'), findsOneWidget);
+      final dialog = find.byType(AlertDialog);
+      expect(
+        find.descendant(
+          of: dialog,
+          matching: find.textContaining('2026-10-03 morning session'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: dialog,
+          matching: find.textContaining('1 attendance record'),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(gateway.safetyWrites, 0);
+      expect(await sessions.findById(sessionId), isNotNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    });
+
+    testWidgets('the details screen deletes the session and leaves it', (
+      tester,
+    ) async {
+      final sessionId = await seedMarkedSession();
+      final gateway = FakeGateway();
+
+      // A real router, because the screen pops itself once the session behind
+      // it is gone. Starting on the list and pushing matches how the screen is
+      // actually reached, which is also the only way there is something to pop
+      // back to.
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) =>
+                const Scaffold(body: Center(child: Text('History list'))),
+          ),
+          GoRoute(
+            path: '/history/:id',
+            builder: (context, state) => AttendanceSessionDetailsPage(
+              sessionId: int.parse(state.pathParameters['id']!),
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            attendanceSessionRepositoryProvider.overrideWithValue(sessions),
+            attendanceRecordRepositoryProvider.overrideWithValue(records),
+            attendanceSessionRosterRepositoryProvider.overrideWithValue(rosters),
+            backupServiceProvider.overrideWith((ref) => BackupService(db)),
+            backupFileGatewayProvider.overrideWithValue(gateway),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('History list'), findsOneWidget);
+
+      router.push('/history/$sessionId');
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Delete session'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Delete session'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      expect(await sessions.findById(sessionId), isNull);
+      expect(gateway.safetyWrites, 1);
+      // Nothing is left to show on a session that no longer exists.
+      expect(find.text('History list'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    });
+
+    testWidgets('confirming deletes the session and says so', (tester) async {
+      final sessionId = await seedMarkedSession();
+      final gateway = FakeGateway();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            attendanceSessionRepositoryProvider.overrideWithValue(sessions),
+            attendanceRecordRepositoryProvider.overrideWithValue(records),
+            attendanceSessionRosterRepositoryProvider.overrideWithValue(rosters),
+            backupServiceProvider.overrideWith((ref) => BackupService(db)),
+            backupFileGatewayProvider.overrideWithValue(gateway),
+          ],
+          child: const MaterialApp(home: AttendanceHistoryPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Session actions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete session'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      expect(await sessions.findById(sessionId), isNull);
+      expect(gateway.safetyWrites, 1);
+      expect(find.text('No attendance sessions yet'), findsOneWidget);
+      expect(find.byType(SnackBar), findsOneWidget);
+      expect(
+        find.textContaining('Deleted the Morning session'),
+        findsOneWidget,
+      );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    });
+  });
+}
+
+/// Records what the controller asked the gateway to do, and can be told to
+/// fail, so that the safety-copy-first ordering is actually observable.
+///
+/// Declared at file level like the other fakes in this suite: the analyzer in
+/// this SDK fails to parse a class declared inside a local function body.
+class FakeGateway implements BackupFileGateway {
+  FakeGateway({this.onWrite});
+
+  /// Runs at the moment the safety copy is written, which is the only way to
+  /// tell whether the session still existed at that point.
+  final Future<void> Function()? onWrite;
+
+  bool safetyBackupThrows = false;
+  int safetyWrites = 0;
+  Uint8List? safetyBytes;
+
+  @override
+  Future<String> writeSafetyBackup(Uint8List bytes, String fileName) async {
+    safetyWrites++;
+    if (safetyBackupThrows) throw StateError('no space left on device');
+    safetyBytes = bytes;
+    await onWrite?.call();
+    return '/backups/$fileName';
+  }
+
+  @override
+  Future<PickedBackup?> pickBackup() async => null;
+
+  @override
+  Future<String?> saveBackup(Uint8List bytes, String fileName) async => null;
+
+  @override
+  Future<String?> saveExport(Uint8List bytes, String fileName) async => null;
 }
