@@ -108,9 +108,24 @@ class _DetailsBody extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            _formatDate(summary.attendanceDate),
-            style: Theme.of(context).textTheme.titleLarge,
+          child: Row(
+            children: [
+              Text(
+                _formatDate(summary.attendanceDate),
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(width: 12),
+              Chip(
+                avatar: Icon(
+                  summary.tripType == TripType.morning
+                      ? Icons.wb_sunny_outlined
+                      : Icons.nights_stay_outlined,
+                  size: 14,
+                ),
+                label: Text(summary.tripType.label),
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
           ),
         ),
         Padding(

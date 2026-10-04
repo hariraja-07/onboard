@@ -100,6 +100,25 @@ void main() {
       expect(summary.percent, 0);
     });
 
+    test('preserves tripType for morning and evening sessions', () async {
+      final morningId = await sessions.createOpen(
+        attendanceDate: DateTime(2026, 10, 3),
+        tripType: 'morning',
+        createdAt: DateTime(2026, 10, 3, 8),
+      );
+      await sessions.complete(morningId);
+
+      await sessions.createOpen(
+        attendanceDate: DateTime(2026, 10, 3),
+        tripType: 'evening',
+        createdAt: DateTime(2026, 10, 3, 16),
+      );
+
+      final summaries = await sessions.listSessions();
+      expect(summaries, hasLength(2));
+      expect(summaries.map((s) => s.tripType), containsAll([TripType.morning, TripType.evening]));
+    });
+
     test('filters by date range and still counts each session', () async {
       final older = await sessions.createOpen(
         attendanceDate: DateTime(2026, 9, 1),

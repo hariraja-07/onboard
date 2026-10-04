@@ -42,6 +42,7 @@ class AttendanceHistoryPage extends ConsumerWidget {
                 child: DataTable(
                   columns: const [
                     DataColumn(label: Text('Date')),
+                    DataColumn(label: Text('Trip')),
                     DataColumn(label: Text('Total')),
                     DataColumn(label: Text('Present')),
                     DataColumn(label: Text('Absent')),
@@ -54,6 +55,7 @@ class AttendanceHistoryPage extends ConsumerWidget {
                       DataRow(
                         cells: [
                           DataCell(Text(_formatDate(session.attendanceDate))),
+                          DataCell(_TripChip(tripType: session.tripType)),
                           DataCell(Text('${session.total}')),
                           DataCell(Text('${session.present}')),
                           DataCell(Text('${session.absent}')),
@@ -89,6 +91,29 @@ class AttendanceHistoryPage extends ConsumerWidget {
     final month = local.month.toString().padLeft(2, '0');
     final day = local.day.toString().padLeft(2, '0');
     return '${local.year}-$month-$day';
+  }
+}
+
+class _TripChip extends StatelessWidget {
+  const _TripChip({required this.tripType});
+
+  final TripType tripType;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMorning = tripType == TripType.morning;
+    final scheme = Theme.of(context).colorScheme;
+    return Chip(
+      avatar: Icon(
+        isMorning ? Icons.wb_sunny_outlined : Icons.nights_stay_outlined,
+        size: 14,
+      ),
+      label: Text(tripType.label),
+      visualDensity: VisualDensity.compact,
+      backgroundColor: isMorning
+          ? scheme.primaryContainer
+          : scheme.secondaryContainer,
+    );
   }
 }
 
