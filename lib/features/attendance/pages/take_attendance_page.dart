@@ -299,79 +299,137 @@ class _CameraSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
-    final maxCameraHeight = isKeyboardOpen ? 90.0 : 180.0;
+    final maxCameraHeight = isKeyboardOpen ? 120.0 : 220.0;
 
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: maxCameraHeight),
+      constraints: BoxConstraints(minHeight: 120.0, maxHeight: maxCameraHeight),
       child: AspectRatio(
         aspectRatio: 16 / 9,
         child: Stack(
           fit: StackFit.expand,
           children: [
-          MobileScanner(
-            controller: controller,
-            onDetect: onDetect,
-            errorBuilder: (context, error, _) => _CameraError(error: error),
-          ),
-          if (!isActive)
-            Container(
-              color: Colors.black54,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.pause_circle_outline, color: Colors.white70),
-                  SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'Scanner paused (session inactive)',
-                      style: TextStyle(color: Colors.white70),
-                      textAlign: TextAlign.center,
+            MobileScanner(
+              controller: controller,
+              onDetect: onDetect,
+              errorBuilder: (context, error, _) => _CameraError(error: error),
+            ),
+            if (isActive)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Center(
+                    child: CustomPaint(
+                      size: const Size(200, 130),
+                      painter: _ReticlePainter(
+                        color: Colors.white,
+                        cornerLength: 24,
+                        strokeWidth: 3,
+                      ),
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-          Positioned(
-            right: 12,
-            bottom: 12,
-            child: ValueListenableBuilder<TorchState>(
-              valueListenable: controller.torchState,
-              builder: (context, torchState, _) {
-                return Row(
+            if (!isActive)
+              Container(
+                color: Colors.black54,
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    ValueListenableBuilder<bool?>(
-                      valueListenable: controller.hasTorchState,
-                      builder: (context, hasTorch, _) => hasTorch == true
-                          ? IconButton.filledTonal(
-                              icon: Icon(
-                                torchState == TorchState.on
-                                    ? Icons.flashlight_on
-                                    : Icons.flashlight_off,
-                              ),
-                              tooltip: 'Toggle torch',
-                              onPressed: onToggleTorch,
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton.filledTonal(
-                      icon: const Icon(Icons.cameraswitch_outlined),
-                      tooltip: 'Switch camera',
-                      onPressed: onFlipCamera,
+                    Icon(Icons.pause_circle_outline, color: Colors.white70),
+                    SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Scanner paused (session inactive)',
+                        style: TextStyle(color: Colors.white70),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ],
-                );
-              },
+                ),
+              ),
+            Positioned(
+              right: 12,
+              bottom: 12,
+              child: ValueListenableBuilder<TorchState>(
+                valueListenable: controller.torchState,
+                builder: (context, torchState, _) {
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ValueListenableBuilder<bool?>(
+                        valueListenable: controller.hasTorchState,
+                        builder: (context, hasTorch, _) => hasTorch == true
+                            ? IconButton.filledTonal(
+                                icon: Icon(
+                                  torchState == TorchState.on
+                                      ? Icons.flashlight_on
+                                      : Icons.flashlight_off,
+                                ),
+                                tooltip: 'Toggle torch',
+                                onPressed: onToggleTorch,
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filledTonal(
+                        icon: const Icon(Icons.cameraswitch_outlined),
+                        tooltip: 'Switch camera',
+                        onPressed: onFlipCamera,
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
+
+class _ReticlePainter extends CustomPainter {
+  const _ReticlePainter({
+    required this.color,
+    required this.cornerLength,
+    required this.strokeWidth,
+  });
+
+  final Color color;
+  final double cornerLength;
+  final double strokeWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+    final r = Rect.fromLTWH(0, 0, size.width, size.height);
+
+    // Top-left
+    canvas.drawLine(r.topLeft, r.topLeft + Offset(cornerLength, 0), paint);
+    canvas.drawLine(r.topLeft, r.topLeft + Offset(0, cornerLength), paint);
+
+    // Top-right
+    canvas.drawLine(r.topRight, r.topRight + Offset(-cornerLength, 0), paint);
+    canvas.drawLine(r.topRight, r.topRight + Offset(0, cornerLength), paint);
+
+    // Bottom-left
+    canvas.drawLine(r.bottomLeft, r.bottomLeft + Offset(cornerLength, 0), paint);
+    canvas.drawLine(r.bottomLeft, r.bottomLeft + Offset(0, -cornerLength), paint);
+
+    // Bottom-right
+    canvas.drawLine(r.bottomRight, r.bottomRight + Offset(-cornerLength, 0), paint);
+    canvas.drawLine(r.bottomRight, r.bottomRight + Offset(0, -cornerLength), paint);
+  }
+
+  @override
+  bool shouldRepaint(_ReticlePainter old) =>
+      old.color != color ||
+      old.cornerLength != cornerLength ||
+      old.strokeWidth != strokeWidth;
 }
 
 class _CameraError extends StatelessWidget {
@@ -381,19 +439,33 @@ class _CameraError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPermission =
+        error.errorCode == MobileScannerErrorCode.permissionDenied;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.camera_alt_outlined),
+            const Icon(Icons.camera_alt_outlined, color: Colors.white70, size: 36),
             const SizedBox(height: 8),
-            Text(error.errorCode.name),
-            if (error.errorDetails?.message != null)
-              Text(error.errorDetails!.message!)
-            else
-              const SizedBox.shrink(),
+            Text(
+              isPermission ? 'Camera permission required' : 'Camera unavailable',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              isPermission
+                  ? 'Please enable camera access in device settings to scan barcodes.'
+                  : (error.errorDetails?.message ?? error.errorCode.name),
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -461,8 +533,10 @@ class _SessionActions extends StatelessWidget {
                   child: Text('Evening Trip'),
                 ),
               ],
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                alignment: Alignment.center,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
