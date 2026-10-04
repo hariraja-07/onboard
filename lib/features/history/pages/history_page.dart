@@ -190,28 +190,6 @@ class _SessionCard extends StatelessWidget {
   }
 }
 
-class _TripChip extends StatelessWidget {
-  const _TripChip({required this.tripType});
-
-  final TripType tripType;
-
-  @override
-  Widget build(BuildContext context) {
-    final isMorning = tripType == TripType.morning;
-    final scheme = Theme.of(context).colorScheme;
-    return Chip(
-      avatar: Icon(
-        isMorning ? Icons.wb_sunny_outlined : Icons.nights_stay_outlined,
-        size: 14,
-      ),
-      label: Text(tripType.label),
-      visualDensity: VisualDensity.compact,
-      backgroundColor: isMorning
-          ? scheme.primaryContainer
-          : scheme.secondaryContainer,
-    );
-  }
-}
 
 class _StatusChip extends StatelessWidget {
   const _StatusChip({required this.status});
