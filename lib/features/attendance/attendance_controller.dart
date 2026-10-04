@@ -26,6 +26,9 @@ enum AttendancePhase {
   /// A session is open and scans are being accepted.
   active,
 
+  /// A session is open but scanning is temporarily suspended.
+  paused,
+
   /// The session has been completed and no longer accepts scans.
   finished,
 }
@@ -106,6 +109,13 @@ class AttendanceState {
 
   /// True when a scan would do something.
   bool get isActive => phase == AttendancePhase.active;
+
+  /// True when the session is still open but scanning is suspended.
+  bool get isPaused => phase == AttendancePhase.paused;
+
+  /// True while the session is open, whether or not it is currently scanning.
+  bool get isSessionOpen =>
+      phase == AttendancePhase.active || phase == AttendancePhase.paused;
 
   /// True when an open session exists that could be picked back up.
   bool get canResume => resumableSessionId != null;
@@ -382,6 +392,37 @@ class AttendanceController extends StateNotifier<AttendanceState> {
         error: 'Could not resume the session.\n$error',
       );
     }
+  }
+
+  /// Suspends scanning without ending the session.
+  ///
+  /// Nothing is written, and that is the point: the repository's complete is
+  /// the only call that closes a session, so declining to call it leaves the
+  /// session open and resumable. Synchronous for the same reason.
+  ///
+  /// The cooldown is reset so a card held while paused is not swallowed when
+  /// scanning resumes, and the last outcome is cleared so the banner does not
+  /// animate in again for a scan that predates the pause.
+  void pauseSession() {
+    if (state.phase != AttendancePhase.active || state.isMarking) return;
+    _resetScanCooldown();
+    state = state.copyWith(
+      phase: AttendancePhase.paused,
+      lastOutcome: null,
+      lastBarcode: null,
+      lastRecord: null,
+      lastStudent: null,
+    );
+  }
+
+  /// Resumes a paused session.
+  ///
+  /// The roster is already in state and the session row is still open, so there
+  /// is nothing to reload and nothing to write.
+  void resumeFromPause() {
+    if (state.phase != AttendancePhase.paused || state.isMarking) return;
+    _resetScanCooldown();
+    state = state.copyWith(phase: AttendancePhase.active);
   }
 
   /// Completes the session. It will not accept further scans afterwards.

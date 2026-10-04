@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +9,17 @@ import '../attendance_controller.dart';
 import '../models/attendance_models.dart';
 import '../widgets/attendance_result_banner.dart';
 import '../widgets/attendance_roster_table.dart';
+
+/// Whether the camera should be running.
+///
+/// Both conditions matter: the session has to accept scans, and this tab has to
+/// be the visible one. The router is a [StatefulShellRoute] indexed stack, so
+/// offstage branches stay mounted and their cameras keep running unless the tab
+/// itself is taken into account.
+bool shouldRunScanner({
+  required bool isActive,
+  required bool isTabVisible,
+}) => isActive && isTabVisible;
 
 /// Primary Take Attendance screen.
 ///
@@ -20,20 +33,36 @@ class TakeAttendancePage extends ConsumerStatefulWidget {
   ConsumerState<TakeAttendancePage> createState() => _TakeAttendancePageState();
 }
 
-class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
+class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
+    with WidgetsBindingObserver {
   final MobileScannerController _scanner = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
     facing: CameraFacing.back,
     detectionTimeoutMs: 250,
+    // The camera is driven from the session phase rather than by the widget's
+    // own auto start, so that starting one implies stopping the other.
+    autoStart: false,
   );
 
   final TextEditingController _search = TextEditingController();
   AttendanceFilter _filter = AttendanceFilter.all;
   bool _hasLoaded = false;
 
+  /// Whether this tab is the selected shell branch.
+  ///
+  /// Read from [TickerMode] because go_router wraps every branch in
+  /// `TickerMode(enabled: isActive)`, which makes the shell's own current index
+  /// observable here without threading it through a provider.
+  bool _isTabVisible = true;
+
+  /// The camera state we have asked for, as opposed to the one the platform
+  /// actually reached. Guards against redundant start/stop calls.
+  bool _scannerShouldRun = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_hasLoaded) {
         _hasLoaded = true;
@@ -46,7 +75,53 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = TickerMode.valuesOf(context).enabled;
+    if (visible == _isTabVisible) return;
+    _isTabVisible = visible;
+    unawaited(_syncScanner());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState appState) {
+    // The scanner widget stops itself when the app leaves the foreground and
+    // restarts itself when it comes back, which would revive a camera the
+    // operator has paused or navigated away from. Our observer is registered
+    // before the widget's, so re-asserting after the frame settles runs last.
+    if (appState == AppLifecycleState.resumed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _syncScanner();
+      });
+    }
+  }
+
+  /// Brings the camera in line with the session phase and the visible tab.
+  Future<void> _syncScanner() async {
+    final shouldRun = shouldRunScanner(
+      isActive: ref.read(attendanceControllerProvider).isActive,
+      isTabVisible: _isTabVisible,
+    );
+    if (shouldRun == _scannerShouldRun) return;
+    _scannerShouldRun = shouldRun;
+    try {
+      if (shouldRun) {
+        await _scanner.start();
+      } else {
+        await _scanner.stop();
+      }
+    } on Exception {
+      // start() and stop() raise MobileScannerException or PlatformException
+      // when the camera is unavailable or permission is denied, and
+      // MissingPluginException when there is no platform channel at all, which
+      // is the case under widget tests. None of that can corrupt attendance:
+      // _onDetect gates on isActive regardless of what the camera is doing.
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _search.dispose();
     _scanner.dispose();
     super.dispose();
@@ -61,6 +136,15 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
         ref.read(attendanceControllerProvider.notifier).onBarcodeScanned(raw);
         return;
       }
+    }
+  }
+
+  void _togglePause() {
+    final notifier = ref.read(attendanceControllerProvider.notifier);
+    if (ref.read(attendanceControllerProvider).isPaused) {
+      notifier.resumeFromPause();
+    } else {
+      notifier.pauseSession();
     }
   }
 
@@ -97,6 +181,7 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
   @override
   Widget build(BuildContext context) {
     ref.listen<AttendanceState>(attendanceControllerProvider, (previous, next) {
+      unawaited(_syncScanner());
       if (next.lastOutcome != null &&
           (next.lastOutcome != previous?.lastOutcome ||
               next.lastBarcode != previous?.lastBarcode ||
@@ -121,7 +206,7 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          state.phase == AttendancePhase.active
+          state.isSessionOpen
               ? 'Attendance • ${state.tripType.label}'
               : 'Take Attendance',
         ),
@@ -154,10 +239,15 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
             ),
           _CameraSection(
             controller: _scanner,
-            isActive: state.isActive,
+            isPaused: state.isPaused,
+            isScanning: shouldRunScanner(
+              isActive: state.isActive,
+              isTabVisible: _isTabVisible,
+            ),
             onDetect: _onDetect,
             onToggleTorch: _toggleTorch,
             onFlipCamera: _flipCamera,
+            onTogglePause: _togglePause,
           ),
           const SizedBox(height: 8),
           AttendanceResultBanner(state: state),
@@ -284,17 +374,21 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
 class _CameraSection extends StatelessWidget {
   const _CameraSection({
     required this.controller,
-    required this.isActive,
+    required this.isPaused,
+    required this.isScanning,
     required this.onDetect,
     required this.onToggleTorch,
     required this.onFlipCamera,
+    required this.onTogglePause,
   });
 
   final MobileScannerController controller;
-  final bool isActive;
+  final bool isPaused;
+  final bool isScanning;
   final void Function(BarcodeCapture capture) onDetect;
   final VoidCallback onToggleTorch;
   final VoidCallback onFlipCamera;
+  final VoidCallback onTogglePause;
 
   @override
   Widget build(BuildContext context) {
@@ -313,7 +407,7 @@ class _CameraSection extends StatelessWidget {
               onDetect: onDetect,
               errorBuilder: (context, error, _) => _CameraError(error: error),
             ),
-            if (isActive)
+            if (isScanning)
               Positioned.fill(
                 child: IgnorePointer(
                   child: Center(
@@ -328,24 +422,26 @@ class _CameraSection extends StatelessWidget {
                   ),
                 ),
               ),
-            if (!isActive)
-              Container(
-                color: Colors.black54,
-                alignment: Alignment.center,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.pause_circle_outline, color: Colors.white70),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Scanner paused (session inactive)',
-                        style: TextStyle(color: Colors.white70),
-                        textAlign: TextAlign.center,
-                      ),
+            if (!isScanning)
+              _ScannerOverlay(isPaused: isPaused, onResume: onTogglePause),
+            // Shown only while the camera is actually running, so the control
+            // that pauses scanning is never the one sitting on a dead preview.
+            if (isScanning)
+              Positioned(
+                left: 12,
+                bottom: 12,
+                child: Semantics(
+                  button: true,
+                  label: 'Pause scanning',
+                  child: FilledButton.tonalIcon(
+                    onPressed: onTogglePause,
+                    icon: const Icon(Icons.pause, size: 18),
+                    label: const Text('Pause'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.black54,
+                      foregroundColor: Colors.white,
                     ),
-                  ],
+                  ),
                 ),
               ),
             Positioned(
@@ -367,7 +463,7 @@ class _CameraSection extends StatelessWidget {
                                       : Icons.flashlight_off,
                                 ),
                                 tooltip: 'Toggle torch',
-                                onPressed: onToggleTorch,
+                                onPressed: isScanning ? onToggleTorch : null,
                               )
                             : const SizedBox.shrink(),
                       ),
@@ -375,7 +471,7 @@ class _CameraSection extends StatelessWidget {
                       IconButton.filledTonal(
                         icon: const Icon(Icons.cameraswitch_outlined),
                         tooltip: 'Switch camera',
-                        onPressed: onFlipCamera,
+                        onPressed: isScanning ? onFlipCamera : null,
                       ),
                     ],
                   );
@@ -383,6 +479,77 @@ class _CameraSection extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Covers the preview whenever the camera is not running.
+///
+/// Doubles as the resume control when a session is paused, because a stopped
+/// camera gives the operator nothing else to react to. Announced as a live
+/// region for the same reason: the state change is otherwise silent.
+class _ScannerOverlay extends StatelessWidget {
+  const _ScannerOverlay({required this.isPaused, required this.onResume});
+
+  final bool isPaused;
+  final VoidCallback onResume;
+
+  @override
+  Widget build(BuildContext context) {
+    final headline = isPaused ? 'Scanning paused' : 'Scanner stopped';
+    final detail = isPaused
+        ? 'Tap to resume'
+        : 'Start or resume a session to scan';
+    final icon = isPaused ? Icons.play_circle_outline : Icons.videocam_off;
+
+    return Positioned.fill(
+      child: Material(
+        color: Colors.black54,
+        child: Semantics(
+          liveRegion: true,
+          label: '$headline. $detail',
+          child: InkWell(
+            onTap: isPaused ? onResume : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              // The preview is short and can be short enough for the copy not
+              // to fit, so scale the block down instead of clipping it.
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ExcludeSemantics(
+                        child: Icon(icon, color: Colors.white70, size: 28),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        headline,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        detail,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -573,6 +740,14 @@ class _SessionActions extends StatelessWidget {
           ],
         );
       }
+      return FilledButton(
+        onPressed: () => notifier.finishSession(),
+        child: Text('Finish (${state.tripType.label})'),
+      );
+    }
+    if (state.phase == AttendancePhase.paused) {
+      // Resume lives on the camera preview, so the only session action offered
+      // here is the one that cannot be reached from anywhere else.
       return FilledButton(
         onPressed: () => notifier.finishSession(),
         child: Text('Finish (${state.tripType.label})'),

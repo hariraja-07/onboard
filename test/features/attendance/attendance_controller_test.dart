@@ -659,4 +659,170 @@ void main() {
       expect(await sessions.findById(sessionId), isNotNull);
     });
   });
+
+  group('pausing a session', () {
+    test('pausing keeps the session open and the marks already made', () async {
+      await addStudent('24BMR016');
+      final notifier = controller();
+      await notifier.load(forDate: now);
+      await notifier.startSession();
+      final sessionId = notifier.state.sessionId!;
+      await notifier.scan('732924BMR016');
+      expect(notifier.state.presentCount, 1);
+
+      notifier.pauseSession();
+
+      expect(notifier.state.phase, AttendancePhase.paused);
+      expect(notifier.state.isPaused, isTrue);
+      // isActive is what scan() gates on, so it must go false here.
+      expect(notifier.state.isActive, isFalse);
+      expect(notifier.state.isSessionOpen, isTrue);
+      expect(notifier.state.sessionId, sessionId);
+      expect(notifier.state.presentCount, 1);
+      // Nothing was closed, so the session is still resumable.
+      expect((await sessions.findById(sessionId))?.status, 'open');
+    });
+
+    test('a camera scan while paused writes nothing', () async {
+      await addStudent('24BMR016');
+      final notifier = controller();
+      await notifier.load(forDate: now);
+      await notifier.startSession();
+      final sessionId = notifier.state.sessionId!;
+      notifier.pauseSession();
+
+      await notifier.onBarcodeScanned('732924BMR016');
+
+      expect(notifier.state.lastOutcome, isNull);
+      expect(notifier.state.presentCount, 0);
+      expect(await records.forSession(sessionId), isEmpty);
+    });
+
+    test('a manual scan while paused writes nothing', () async {
+      await addStudent('24BMR016');
+      final notifier = controller();
+      await notifier.load(forDate: now);
+      await notifier.startSession();
+      final sessionId = notifier.state.sessionId!;
+      notifier.pauseSession();
+
+      await notifier.submitBarcode('732924BMR016');
+
+      expect(notifier.state.lastOutcome, isNull);
+      expect(await records.forSession(sessionId), isEmpty);
+    });
+
+    test('resuming accepts scans again', () async {
+      await addStudent('24BMR016');
+      final notifier = controller();
+      await notifier.load(forDate: now);
+      await notifier.startSession();
+      notifier.pauseSession();
+
+      notifier.resumeFromPause();
+
+      expect(notifier.state.phase, AttendancePhase.active);
+      expect(notifier.state.isPaused, isFalse);
+      expect(notifier.state.isActive, isTrue);
+
+      await notifier.scan('732924BMR016');
+      expect(notifier.state.lastOutcome, AttendanceScanOutcome.marked);
+      expect(notifier.state.presentCount, 1);
+    });
+
+    test('pausing clears the last outcome so the banner cannot replay it', () async {
+      await addStudent('24BMR016');
+      final notifier = controller();
+      await notifier.load(forDate: now);
+      await notifier.startSession();
+      await notifier.scan('732924BMR016');
+      expect(notifier.state.lastOutcome, AttendanceScanOutcome.marked);
+
+      notifier.pauseSession();
+
+      expect(notifier.state.lastOutcome, isNull);
+      expect(notifier.state.lastBarcode, isNull);
+      expect(notifier.state.lastRecord, isNull);
+    });
+
+    test('pausing resets the cooldown so a card held during the pause lands', () async {
+      await addStudent('24BMR016');
+      final notifier = controller();
+      await notifier.load(forDate: now);
+      await notifier.startSession();
+
+      await notifier.onBarcodeScanned('732924BMR016');
+      expect(notifier.state.lastOutcome, AttendanceScanOutcome.marked);
+
+      // Inside the cooldown an unchanged value is swallowed outright, so the
+      // previous outcome is left standing. This is the baseline.
+      now = now.add(const Duration(seconds: 1));
+      await notifier.onBarcodeScanned('732924BMR016');
+      expect(notifier.state.lastOutcome, AttendanceScanOutcome.marked);
+
+      // Pausing clears the outcome, so a repeat that now gets through is
+      // visible as alreadyPresent rather than being indistinguishable.
+      notifier.pauseSession();
+      expect(notifier.state.lastOutcome, isNull);
+      notifier.resumeFromPause();
+
+      await notifier.onBarcodeScanned('732924BMR016');
+      expect(
+        notifier.state.lastOutcome,
+        AttendanceScanOutcome.alreadyPresent,
+        reason: 'the cooldown should have been reset by the pause',
+      );
+      expect(notifier.state.presentCount, 1);
+    });
+
+    test('refuses to pause outside an active session', () async {
+      await addStudent('24BMR016');
+      final notifier = controller();
+      await notifier.load(forDate: now);
+
+      notifier.pauseSession();
+      expect(notifier.state.phase, AttendancePhase.awaitingStart);
+
+      await notifier.startSession();
+      notifier.pauseSession();
+      notifier.pauseSession();
+
+      // The second pause is a no-op rather than a way to resume.
+      expect(notifier.state.phase, AttendancePhase.paused);
+    });
+
+    test('refuses to resume when no session is paused', () async {
+      await addStudent('24BMR016');
+      final notifier = controller();
+      await notifier.load(forDate: now);
+      await notifier.startSession();
+
+      notifier.resumeFromPause();
+
+      expect(notifier.state.phase, AttendancePhase.active);
+    });
+
+    test('a session paused before a restart comes back as resumable', () async {
+      await addStudent('24BMR016');
+      final notifier = controller();
+      await notifier.load(forDate: now);
+      await notifier.startSession();
+      await notifier.scan('732924BMR016');
+      notifier.pauseSession();
+      final sessionId = notifier.state.sessionId!;
+
+      // A controller over the same database, as a relaunched app would build.
+      final rebuilt = controller();
+      await rebuilt.load(forDate: now);
+
+      expect(rebuilt.state.canResume, isTrue);
+      expect(rebuilt.state.resumableSessionId, sessionId);
+      expect(rebuilt.state.isPaused, isFalse);
+
+      await rebuilt.resumeSession();
+      expect(rebuilt.state.phase, AttendancePhase.active);
+      // The mark made before the pause is still there.
+      expect(rebuilt.state.presentCount, 1);
+    });
+  });
 }

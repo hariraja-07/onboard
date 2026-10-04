@@ -10,6 +10,7 @@ import 'package:onboard/core/database/repositories/attendance_session_roster_rep
 import 'package:onboard/core/database/repositories/student_repository.dart';
 import 'package:onboard/features/attendance/attendance_controller.dart';
 import 'package:onboard/features/attendance/barcode/barcode_service.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:onboard/features/attendance/pages/take_attendance_page.dart';
 
 void main() {
@@ -40,7 +41,11 @@ void main() {
     );
   }
 
-  Widget createSubject({AttendanceController? controller}) {
+  Widget createSubject({AttendanceController? controller, bool? tickersEnabled}) {
+    Widget page = const TakeAttendancePage();
+    if (tickersEnabled != null) {
+      page = TickerMode(enabled: tickersEnabled, child: page);
+    }
     return ProviderScope(
       overrides: [
         databaseProvider.overrideWithValue(db),
@@ -51,13 +56,21 @@ void main() {
         if (controller != null)
           attendanceControllerProvider.overrideWith((ref) => controller),
       ],
-      child: const MaterialApp(
-        home: TakeAttendancePage(),
+      child: MaterialApp(
+        home: page,
       ),
     );
   }
 
-  testWidgets('renders filter segmented button with All, Present, Absent and search field', (
+  AttendanceController buildController() => AttendanceController(
+    studentRepository: students,
+    sessionRepository: sessions,
+    recordRepository: records,
+    rosterRepository: rosters,
+    service: const BarcodeService(),
+  );
+
+    testWidgets('renders filter segmented button with All, Present, Absent and search field', (
     tester,
   ) async {
     await seedStudent('24BMR016', 'Alice');
@@ -179,5 +192,197 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
+  });
+
+  group('shouldRunScanner', () {
+    test('runs only when the session is active and the tab is visible', () {
+      expect(
+        shouldRunScanner(isActive: true, isTabVisible: true),
+        isTrue,
+      );
+      // Offstage tabs and finished sessions must both release the camera.
+      expect(
+        shouldRunScanner(isActive: true, isTabVisible: false),
+        isFalse,
+      );
+      expect(
+        shouldRunScanner(isActive: false, isTabVisible: true),
+        isFalse,
+      );
+      expect(
+        shouldRunScanner(isActive: false, isTabVisible: false),
+        isFalse,
+      );
+    });
+  });
+
+  group('pausing from the camera overlay', () {
+    testWidgets('offers Pause only while a session is active', (tester) async {
+      await seedStudent('24BMR016', 'Alice');
+      final controller = buildController();
+
+      await tester.pumpWidget(createSubject(controller: controller));
+      await tester.pumpAndSettle();
+      expect(find.text('Pause'), findsNothing);
+
+      await tester.tap(find.text('Start Morning Session'));
+      await tester.pumpAndSettle();
+      expect(find.text('Pause'), findsOneWidget);
+
+      await tester.tap(find.text('Pause'));
+      await tester.pumpAndSettle();
+      expect(find.text('Pause'), findsNothing);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    });
+
+    testWidgets('pausing shows a resume overlay and keeps Finish reachable', (
+      tester,
+    ) async {
+      await seedStudent('24BMR016', 'Alice');
+      final controller = buildController();
+
+      await tester.pumpWidget(createSubject(controller: controller));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Start Morning Session'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Pause'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Scanning paused'), findsOneWidget);
+      expect(find.text('Tap to resume'), findsOneWidget);
+      // The old copy claimed the scanner was paused because the session was
+      // inactive; that is no longer what happens.
+      expect(find.textContaining('session inactive'), findsNothing);
+      // Finish stays available so a paused session is not a dead end.
+      expect(find.text('Finish (Morning)'), findsOneWidget);
+      // The title keeps identifying the live session.
+      expect(find.text('Attendance • Morning'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    });
+
+    testWidgets('tapping the overlay resumes and restores the reticle', (
+      tester,
+    ) async {
+      await seedStudent('24BMR016', 'Alice');
+      final controller = buildController();
+
+      await tester.pumpWidget(createSubject(controller: controller));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Start Morning Session'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pause'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CustomPaint), findsWidgets);
+
+      await tester.tap(find.text('Tap to resume'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Scanning paused'), findsNothing);
+      expect(find.text('Tap to resume'), findsNothing);
+      expect(find.text('Pause'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    });
+
+    testWidgets('a stopped camera cannot be driven by torch or flip', (
+      tester,
+    ) async {
+      await seedStudent('24BMR016', 'Alice');
+      final controller = buildController();
+
+      await tester.pumpWidget(createSubject(controller: controller));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Start Morning Session'));
+      await tester.pumpAndSettle();
+
+      // find.byTooltip resolves to the tooltip wrapper, so reach the button
+      // through it.
+      IconButton switchCamera() => tester.widget<IconButton>(
+        find.ancestor(
+          of: find.byTooltip('Switch camera'),
+          matching: find.byType(IconButton),
+        ),
+      );
+      expect(switchCamera().onPressed, isNotNull);
+
+      await tester.tap(find.text('Pause'));
+      await tester.pumpAndSettle();
+
+      expect(switchCamera().onPressed, isNull);
+      expect(controller.state.phase, AttendancePhase.paused);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    });
+
+    testWidgets('an offstage tab reports a stopped scanner, not a paused one', (
+      tester,
+    ) async {
+      await seedStudent('24BMR016', 'Alice');
+      final controller = buildController();
+
+      // tickersEnabled: false mirrors the offstage branch of the indexed
+      // shell, which keeps the page alive but muted.
+      await tester.pumpWidget(
+        createSubject(controller: controller, tickersEnabled: false),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Start Morning Session'));
+      await tester.pumpAndSettle();
+
+      expect(controller.state.isActive, isTrue);
+      expect(find.text('Scanner stopped'), findsOneWidget);
+      expect(find.text('Start or resume a session to scan'), findsOneWidget);
+      // Not resumable, so it must not offer a resume affordance.
+      expect(find.text('Tap to resume'), findsNothing);
+      expect(find.text('Pause'), findsNothing);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    });
+
+    // The overlay copy has to fit a 220dp-tall preview, so doubling the text is
+    // what stresses it. The surface is wide enough for the pre-existing
+    // _SessionActions row, which needs ~964dp at 2x text, so takeException
+    // stays meaningful instead of reporting that unrelated overflow.
+    testWidgets('the paused overlay copy still fits the preview at a large text scale', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1100, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await seedStudent('24BMR016', 'Alice');
+      final controller = buildController();
+
+      await tester.pumpWidget(createSubject(controller: controller));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Start Morning Session'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pause'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Scanning paused'), findsOneWidget);
+      final preview = tester.getSize(find.byType(MobileScanner));
+      final overlayCopy = tester.getSize(find.byType(FittedBox));
+      expect(
+        overlayCopy.height,
+        lessThanOrEqualTo(preview.height),
+        reason: 'the overlay must scale its copy rather than overflow the preview',
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    });
   });
 }
