@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/database/database.dart';
@@ -6,6 +7,8 @@ import '../../core/database/repositories/attendance_record_repository.dart';
 import '../../core/database/repositories/attendance_session_repository.dart';
 import '../../core/database/repositories/attendance_session_roster_repository.dart';
 import '../../core/database/repositories/student_repository.dart';
+import '../dashboard/dashboard_service.dart';
+import '../history/history_controller.dart';
 import 'barcode/barcode_service.dart';
 import 'models/attendance_models.dart';
 
@@ -37,6 +40,10 @@ final attendanceControllerProvider =
         recordRepository: ref.watch(attendanceRecordRepositoryProvider),
         rosterRepository: ref.watch(attendanceSessionRosterRepositoryProvider),
         service: const BarcodeService(),
+        onSessionChanged: () {
+          ref.invalidate(dashboardProvider);
+          ref.invalidate(attendanceHistoryProvider);
+        },
       );
     });
 
@@ -45,6 +52,7 @@ class AttendanceState {
   const AttendanceState({
     this.phase = AttendancePhase.idle,
     this.attendanceDate,
+    this.tripType = TripType.morning,
     this.sessionId,
     this.resumableSessionId,
     this.roster = const [],
@@ -61,6 +69,9 @@ class AttendanceState {
 
   /// The day being marked, once known.
   final DateTime? attendanceDate;
+
+  /// The shift/trip being marked (morning or evening).
+  final TripType tripType;
 
   /// The open session, while [phase] is [AttendancePhase.active].
   final int? sessionId;
@@ -133,6 +144,7 @@ class AttendanceState {
   AttendanceState copyWith({
     AttendancePhase? phase,
     Object? attendanceDate = _unset,
+    TripType? tripType,
     Object? sessionId = _unset,
     Object? resumableSessionId = _unset,
     List<StudentAttendance>? roster,
@@ -149,6 +161,7 @@ class AttendanceState {
       attendanceDate: identical(attendanceDate, _unset)
           ? this.attendanceDate
           : attendanceDate as DateTime?,
+      tripType: tripType ?? this.tripType,
       sessionId: identical(sessionId, _unset)
           ? this.sessionId
           : sessionId as int?,
@@ -176,7 +189,7 @@ class AttendanceState {
 
   @override
   String toString() =>
-      'AttendanceState(${phase.name}, $presentCount/$totalCount present)';
+      'AttendanceState(${phase.name}, ${tripType.label}, $presentCount/$totalCount present)';
 }
 
 /// Drives one attendance session.
@@ -191,6 +204,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     required AttendanceRecordRepository recordRepository,
     AttendanceSessionRosterRepository? rosterRepository,
     required BarcodeService service,
+    VoidCallback? onSessionChanged,
     DateTime Function()? clock,
     Duration scanCooldown = defaultScanCooldown,
   }) : _students = studentRepository,
@@ -198,6 +212,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
        _records = recordRepository,
        _roster = rosterRepository,
        _service = service,
+       _onSessionChanged = onSessionChanged,
        _clock = clock ?? DateTime.now,
        _scanCooldown = scanCooldown,
        super(const AttendanceState());
@@ -211,6 +226,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
   final AttendanceRecordRepository _records;
   final AttendanceSessionRosterRepository? _roster;
   final BarcodeService _service;
+  final VoidCallback? _onSessionChanged;
   final Duration _scanCooldown;
   final DateTime Function() _clock;
 
@@ -220,6 +236,12 @@ class AttendanceController extends StateNotifier<AttendanceState> {
   /// Serializes scans so a barcode presented while an earlier one is still
   /// being written waits its turn instead of being dropped.
   Future<void> _scanQueue = Future.value();
+
+  /// Changes the trip type before the session starts.
+  void selectTrip(TripType trip) {
+    if (state.phase == AttendancePhase.active || state.isSessionBusy) return;
+    state = state.copyWith(tripType: trip);
+  }
 
   /// Finds today's open session and loads the roster.
   ///
@@ -237,9 +259,26 @@ class AttendanceController extends StateNotifier<AttendanceState> {
       // midnight is surfaced instead of becoming permanently stuck.
       final open = await _sessions.findAnyOpen();
       final roster = await _buildRoster();
+
+      TripType suggestedTrip = TripType.morning;
+      if (open != null) {
+        suggestedTrip = TripType.fromWireValue(open.tripType);
+      } else {
+        final existingToday = await _sessions.forDate(date);
+        final hasCompletedMorning = existingToday.any(
+          (s) =>
+              s.tripType == TripType.morning.wireValue &&
+              s.status == AttendanceSessionStatus.completed.wireValue,
+        );
+        if (hasCompletedMorning) {
+          suggestedTrip = TripType.evening;
+        }
+      }
+
       state = state.copyWith(
         phase: AttendancePhase.awaitingStart,
         attendanceDate: open?.attendanceDate ?? date,
+        tripType: suggestedTrip,
         resumableSessionId: open?.id,
         roster: roster,
       );
@@ -252,14 +291,21 @@ class AttendanceController extends StateNotifier<AttendanceState> {
   }
 
   /// Begins a new session for the loaded date.
-  Future<void> startSession() async {
+  Future<void> startSession({TripType? trip}) async {
     if (state.isMarking) return;
+    final tripToUse = trip ?? state.tripType;
     final date = state.attendanceDate ?? _clock();
-    state = state.copyWith(isMarking: true, isSessionBusy: true, error: null);
+    state = state.copyWith(
+      isMarking: true,
+      isSessionBusy: true,
+      tripType: tripToUse,
+      error: null,
+    );
     try {
       final now = _clock();
       final id = await _sessions.findOrCreateOpen(
         attendanceDate: date,
+        tripType: tripToUse.wireValue,
         createdAt: now,
       );
       _resetScanCooldown();
@@ -270,6 +316,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
       state = state.copyWith(
         phase: AttendancePhase.active,
         attendanceDate: date,
+        tripType: tripToUse,
         sessionId: id,
         // A newly started session supersedes any open one found earlier.
         resumableSessionId: null,
@@ -284,6 +331,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
         lastRecord: null,
         lastStudent: null,
       );
+      _onSessionChanged?.call();
     } catch (error) {
       state = state.copyWith(
         isMarking: false,
@@ -304,10 +352,18 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     state = state.copyWith(isMarking: true, isSessionBusy: true, error: null);
     try {
       _resetScanCooldown();
+      final open = await _sessions.findAnyOpen();
+      final trip = open != null
+          ? TripType.fromWireValue(open.tripType)
+          : state.tripType;
       // As in startSession: publish the id before building the roster, which
       // reads records for that session. Marks made before the interruption have
       // to come back as present.
-      state = state.copyWith(phase: AttendancePhase.active, sessionId: id);
+      state = state.copyWith(
+        phase: AttendancePhase.active,
+        sessionId: id,
+        tripType: trip,
+      );
       await _captureRoster(id);
       state = state.copyWith(
         roster: await _buildRoster(),
@@ -318,6 +374,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
         lastRecord: null,
         lastStudent: null,
       );
+      _onSessionChanged?.call();
     } catch (error) {
       state = state.copyWith(
         isMarking: false,
@@ -339,12 +396,17 @@ class AttendanceController extends StateNotifier<AttendanceState> {
       // snapshotted keep their original values and history stays immutable.
       await _captureRoster(id);
       await _sessions.complete(id);
+      final nextTrip = state.tripType == TripType.morning
+          ? TripType.evening
+          : TripType.morning;
       state = state.copyWith(
         phase: AttendancePhase.finished,
         sessionId: null,
+        tripType: nextTrip,
         isMarking: false,
         isSessionBusy: false,
       );
+      _onSessionChanged?.call();
     } catch (error) {
       state = state.copyWith(
         isMarking: false,
@@ -437,6 +499,9 @@ class AttendanceController extends StateNotifier<AttendanceState> {
         roster: _withStudentMarked(result.record),
         isMarking: false,
       );
+      if (result.isNew) {
+        _onSessionChanged?.call();
+      }
     } catch (error) {
       state = state.copyWith(
         isMarking: false,

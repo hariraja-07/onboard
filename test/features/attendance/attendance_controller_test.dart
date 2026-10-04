@@ -40,12 +40,16 @@ void main() {
   }
 
   /// A controller over the same database, as a rebuilt app would see it.
-  AttendanceController controller({Duration? cooldown}) => AttendanceController(
+  AttendanceController controller({
+    Duration? cooldown,
+    void Function()? onSessionChanged,
+  }) => AttendanceController(
     studentRepository: students,
     sessionRepository: sessions,
     recordRepository: records,
     rosterRepository: rosters,
     service: const BarcodeService(),
+    onSessionChanged: onSessionChanged,
     clock: () => now,
     scanCooldown: cooldown ?? const Duration(seconds: 2),
   );
@@ -513,6 +517,74 @@ void main() {
         populated.copyWith(resumableSessionId: null).resumableSessionId,
         isNull,
       );
+    });
+  });
+
+  group('trip lifecycle and transitions', () {
+    test('selectTrip updates tripType before session begins', () async {
+      final notifier = controller();
+      await notifier.load(forDate: now);
+      expect(notifier.state.tripType, TripType.morning);
+
+      notifier.selectTrip(TripType.evening);
+      expect(notifier.state.tripType, TripType.evening);
+    });
+
+    test('startSession uses selected tripType and stores it in database', () async {
+      await addStudent('24BMR016');
+      final notifier = controller();
+      await notifier.load(forDate: now);
+      notifier.selectTrip(TripType.evening);
+      await notifier.startSession();
+
+      expect(notifier.state.tripType, TripType.evening);
+      final stored = await sessions.forDate(now);
+      expect(stored.single.tripType, 'evening');
+    });
+
+    test('load suggests evening if morning session completed today', () async {
+      await addStudent('24BMR016');
+      final morningNotifier = controller();
+      await morningNotifier.load(forDate: now);
+      await morningNotifier.startSession(trip: TripType.morning);
+      await morningNotifier.finishSession();
+
+      final eveningNotifier = controller();
+      await eveningNotifier.load(forDate: now);
+      expect(eveningNotifier.state.tripType, TripType.evening);
+    });
+
+    test('finishSession suggests evening trip when morning session finishes', () async {
+      await addStudent('24BMR016');
+      final notifier = controller();
+      await notifier.load(forDate: now);
+      await notifier.startSession(trip: TripType.morning);
+      await notifier.finishSession();
+
+      expect(notifier.state.phase, AttendancePhase.finished);
+      expect(notifier.state.tripType, TripType.evening);
+    });
+
+    test('notifies onSessionChanged on start, scan, finish, and resume', () async {
+      await addStudent('24BMR016');
+      var changeCount = 0;
+      final notifier = controller(onSessionChanged: () => changeCount++);
+
+      await notifier.load(forDate: now);
+      expect(changeCount, 0);
+
+      await notifier.startSession();
+      expect(changeCount, 1);
+
+      await notifier.scan('732924BMR016');
+      expect(changeCount, 2);
+
+      // Duplicate scan should not notify
+      await notifier.scan('732924BMR016');
+      expect(changeCount, 2);
+
+      await notifier.finishSession();
+      expect(changeCount, 3);
     });
   });
 }
