@@ -10,6 +10,7 @@ class AttendanceSessionRepository {
 
   Future<int> createOpen({
     required DateTime attendanceDate,
+    String tripType = 'morning',
     DateTime? createdAt,
   }) async {
     final now = createdAt ?? DateTime.now();
@@ -22,6 +23,7 @@ class AttendanceSessionRepository {
               attendanceDate.month,
               attendanceDate.day,
             ),
+            tripType: Value(tripType),
             status: 'open',
             createdAt: now,
           ),
@@ -42,20 +44,25 @@ class AttendanceSessionRepository {
   }
 
   /// Returns the open session if there is one, otherwise opens one for
-  /// [attendanceDate].
+  /// [attendanceDate] with [tripType].
   ///
   /// Runs in a transaction so two near-simultaneous starts cannot both insert:
   /// the first commits the open row, the second sees it. This keeps the
   /// invariant that at most one session is open at a time.
   Future<int> findOrCreateOpen({
     required DateTime attendanceDate,
+    String tripType = 'morning',
     DateTime? createdAt,
   }) {
     final now = createdAt ?? DateTime.now();
     return _db.transaction(() async {
       final existing = await findAnyOpen();
       if (existing != null) return existing.id;
-      return createOpen(attendanceDate: attendanceDate, createdAt: now);
+      return createOpen(
+        attendanceDate: attendanceDate,
+        tripType: tripType,
+        createdAt: now,
+      );
     });
   }
 
@@ -98,16 +105,40 @@ class AttendanceSessionRepository {
     required DateTime attendanceDate,
     required DateTime createdAt,
     required String status,
+    String tripType = 'morning',
   }) async {
     return _db
         .into(_db.attendanceSessions)
         .insert(
           AttendanceSessionsCompanion.insert(
             attendanceDate: attendanceDate,
+            tripType: Value(tripType),
             status: status,
             createdAt: createdAt,
           ),
         );
+  }
+
+  Future<AttendanceSession?> findForDateAndTrip(
+    DateTime attendanceDate,
+    String tripType,
+  ) async {
+    final start = DateTime(
+      attendanceDate.year,
+      attendanceDate.month,
+      attendanceDate.day,
+    );
+    final end = start.add(const Duration(days: 1));
+    return (_db.select(_db.attendanceSessions)
+          ..where(
+            (tbl) =>
+                tbl.attendanceDate.isBiggerOrEqualValue(start) &
+                tbl.attendanceDate.isSmallerThanValue(end) &
+                tbl.tripType.equals(tripType),
+          )
+          ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)])
+          ..limit(1))
+        .getSingleOrNull();
   }
 
   Future<void> finishSession(int sessionId, {DateTime? endedAt}) async {

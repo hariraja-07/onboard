@@ -359,6 +359,32 @@ void main() {
       expect(session!.status, AttendanceSessionStatus.completed.wireValue);
       expect(session.endedAt!.toUtc(), finishedAt);
     });
+
+    test('supports morning and evening trips on the same date', () async {
+      final morningId = await sessions.createOpen(
+        attendanceDate: today,
+        tripType: 'morning',
+        createdAt: DateTime.utc(2026, 10, 3, 8),
+      );
+      await sessions.complete(morningId, DateTime.utc(2026, 10, 3, 10));
+
+      final eveningId = await sessions.createOpen(
+        attendanceDate: today,
+        tripType: 'evening',
+        createdAt: DateTime.utc(2026, 10, 3, 16),
+      );
+
+      final morningSession = await sessions.findForDateAndTrip(today, 'morning');
+      final eveningSession = await sessions.findForDateAndTrip(today, 'evening');
+
+      expect(morningSession!.id, morningId);
+      expect(morningSession.tripType, 'morning');
+      expect(morningSession.status, 'completed');
+
+      expect(eveningSession!.id, eveningId);
+      expect(eveningSession.tripType, 'evening');
+      expect(eveningSession.status, 'open');
+    });
   });
 
   group('AttendanceStatus', () {
