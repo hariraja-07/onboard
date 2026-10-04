@@ -254,6 +254,13 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage> {
               state: state,
               filtered: roster,
               filter: _filter,
+              onStudentTap: state.isActive
+                  ? (entry) {
+                      if (!entry.isPresent) {
+                        notifier.submitBarcode(entry.student.rollNo);
+                      }
+                    }
+                  : null,
             ),
           ),
         ],
@@ -279,11 +286,16 @@ class _CameraSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 16 / 9,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final maxCameraHeight = isKeyboardOpen ? 90.0 : 180.0;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxCameraHeight),
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
           MobileScanner(
             controller: controller,
             onDetect: onDetect,
@@ -293,14 +305,18 @@ class _CameraSection extends StatelessWidget {
             Container(
               color: Colors.black54,
               alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.pause_circle_outline, color: Colors.white70),
                   SizedBox(width: 8),
-                  Text(
-                    'Scanner paused (session inactive)',
-                    style: TextStyle(color: Colors.white70),
+                  Flexible(
+                    child: Text(
+                      'Scanner paused (session inactive)',
+                      style: TextStyle(color: Colors.white70),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ],
               ),
@@ -341,8 +357,9 @@ class _CameraSection extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _CameraError extends StatelessWidget {

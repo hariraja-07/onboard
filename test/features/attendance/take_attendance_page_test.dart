@@ -148,4 +148,37 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
+
+  testWidgets('allows tapping an absent student card in roster to mark attendance', (
+    tester,
+  ) async {
+    await seedStudent('24BMR016', 'Alice');
+
+    final controller = AttendanceController(
+      studentRepository: students,
+      sessionRepository: sessions,
+      recordRepository: records,
+      rosterRepository: rosters,
+      service: const BarcodeService(),
+    );
+
+    await tester.pumpWidget(createSubject(controller: controller));
+    await tester.pumpAndSettle();
+
+    // Start morning session
+    await tester.tap(find.text('Start Morning Session'));
+    await tester.pumpAndSettle();
+
+    // Tap Alice in the roster
+    expect(find.text('Alice'), findsOneWidget);
+    await tester.tap(find.text('Alice'));
+    await tester.pumpAndSettle();
+
+    // Student marked present
+    expect(find.text('Attendance Marked'), findsOneWidget);
+    expect(find.byIcon(Icons.check_circle), findsWidgets);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
 }

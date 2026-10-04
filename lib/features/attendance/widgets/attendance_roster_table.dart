@@ -3,19 +3,20 @@ import '../attendance_controller.dart';
 import '../models/attendance_models.dart';
 
 /// Renders the session roster for the selected filter in a phone-first
-/// responsive layout. On narrow widths a simple list is shown; the code is
-/// structured to allow a DataTable on wide layouts without changing the API.
+/// responsive layout.
 class AttendanceRosterTable extends StatelessWidget {
   const AttendanceRosterTable({
     super.key,
     required this.state,
     required this.filtered,
     required this.filter,
+    this.onStudentTap,
   });
 
   final AttendanceState state;
   final List<StudentAttendance> filtered;
   final AttendanceFilter filter;
+  final void Function(StudentAttendance entry)? onStudentTap;
 
   @override
   Widget build(BuildContext context) {
@@ -29,28 +30,48 @@ class AttendanceRosterTable extends StatelessWidget {
         final entry = filtered[index];
         final theme = Theme.of(context);
         final isPresent = entry.isPresent;
+        final avatarLetter = entry.student.name.isNotEmpty
+            ? entry.student.name[0].toUpperCase()
+            : (entry.student.rollNo.isNotEmpty
+                ? entry.student.rollNo[0].toUpperCase()
+                : '?');
+
         return Card(
           elevation: 0,
           color: isPresent
               ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
               : theme.colorScheme.surfaceContainer,
           child: ListTile(
+            onTap: onStudentTap != null ? () => onStudentTap!(entry) : null,
             leading: CircleAvatar(
-              child: Text(
-                entry.student.rollNo.isNotEmpty
-                    ? entry.student.rollNo[0].toUpperCase()
-                    : '?',
-              ),
+              backgroundColor: isPresent
+                  ? theme.colorScheme.primaryContainer
+                  : theme.colorScheme.surfaceContainerHighest,
+              foregroundColor: isPresent
+                  ? theme.colorScheme.onPrimaryContainer
+                  : theme.colorScheme.onSurfaceVariant,
+              child: Text(avatarLetter),
             ),
             title: Text(
               entry.student.name.isNotEmpty
                   ? entry.student.name
                   : entry.student.rollNo,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            subtitle: Text(entry.student.rollNo),
+            subtitle: Text(
+              '${entry.student.rollNo} • ${entry.student.boardingPoint}',
+            ),
             trailing: isPresent
                 ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
-                : const Icon(Icons.radio_button_unchecked),
+                : (state.isActive
+                    ? IconButton(
+                        icon: const Icon(Icons.add_circle_outline),
+                        tooltip: 'Mark Present',
+                        onPressed: onStudentTap != null
+                            ? () => onStudentTap!(entry)
+                            : null,
+                      )
+                    : const Icon(Icons.radio_button_unchecked)),
           ),
         );
       },
