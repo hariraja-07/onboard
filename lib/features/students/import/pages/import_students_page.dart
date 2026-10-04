@@ -225,189 +225,271 @@ class _PreviewViewState extends State<_PreviewView>
   Widget build(BuildContext context) {
     final preview = widget.preview;
 
-    return Column(
-      children: [
-        _SourceCard(preview: preview),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: [
-              _SummaryBadge(
-                label: 'To Add',
-                count: preview.newStudents.length,
-                color: Colors.green,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The header carries the file summary and the Add/Update/Skip counts.
+        // Capping it as a share of the viewport and letting it scroll
+        // internally keeps a wide sheet's column mapping from squeezing the
+        // roster away or pushing the pinned TabBar and confirm bar off
+        // screen. The roster keeps whatever vertical space is left over.
+        final headerMaxHeight = (constraints.maxHeight * 0.35).clamp(
+          96.0,
+          260.0,
+        );
+
+        return Column(
+          children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: headerMaxHeight),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _SourceCard(preview: preview),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _SummaryBadge(
+                            label: 'To Add',
+                            count: preview.newStudents.length,
+                            color: Colors.green,
+                          ),
+                          _SummaryBadge(
+                            label: 'To Update',
+                            count: preview.updatedStudents.length,
+                            color: Colors.blue,
+                          ),
+                          _SummaryBadge(
+                            label: 'To Skip',
+                            count: preview.skippedCount,
+                            color: Colors.orange,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(width: 8),
-              _SummaryBadge(
-                label: 'To Update',
-                count: preview.updatedStudents.length,
-                color: Colors.blue,
+            ),
+            TabBar(
+              controller: _tabs,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              tabs: [
+                _CountTab(label: 'New', count: preview.newStudents.length),
+                _CountTab(label: 'Existing', count: preview.existing.length),
+_CountTab(label: 'Duplicates', count: preview.duplicates.length),
+                _CountTab(label: 'Invalid', count: preview.invalid.length),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabs,
+                children: [
+                  _StudentList(
+                    students: preview.newStudents
+                        .map(
+                          (draft) => _StudentRow(
+                            rowNumber: draft.rowNumber,
+                            rollNo: draft.rollNo,
+                            name: draft.name,
+                            institution: draft.institution,
+                            boardingPoint: draft.boardingPoint,
+                          ),
+                        )
+                        .toList(),
+                    emptyMessage: 'No new students in this file.',
+                  ),
+                  _StudentList(
+                    students: preview.existing
+                        .map(
+                          (match) => _StudentRow(
+                            rowNumber: match.rowNumber,
+                            rollNo: match.rollNo,
+                            name: match.name,
+                            institution: match.institution,
+                            boardingPoint: match.boardingPoint,
+                            note: match.hasChanges
+                                ? 'Update available (details differ)'
+                                : 'Already in OnBoard — no changes',
+                          ),
+                        )
+                        .toList(),
+                    emptyMessage:
+                        'No students already exist with these roll numbers.',
+                  ),
+                  _StudentList(
+                    students: preview.duplicates
+                        .map(
+                          (match) => _StudentRow(
+                            rowNumber: match.rowNumber,
+                            rollNo: match.rollNo,
+                            name: match.name,
+                            institution: match.institution,
+                            boardingPoint: match.boardingPoint,
+                            note: 'Same roll no as row ${match.firstRowNumber}',
+                          ),
+                        )
+                        .toList(),
+                    emptyMessage: 'No repeated roll numbers in this file.',
+                  ),
+                  _StudentList(
+                    students: preview.invalid
+                        .map(
+                          (match) => _StudentRow(
+                            rowNumber: match.rowNumber,
+                            rollNo: match.rollNo,
+                            name: match.name,
+                            institution: match.institution,
+                            boardingPoint: match.boardingPoint,
+                            note: match.reason,
+                            isProblem: true,
+                          ),
+                        )
+                        .toList(),
+                    emptyMessage: 'Every row passed validation.',
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              _SummaryBadge(
-                label: 'To Skip',
-                count: preview.skippedCount,
-                color: Colors.orange,
-              ),
-            ],
-          ),
-        ),
-        TabBar(
-          controller: _tabs,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          tabs: [
-            _CountTab(label: 'New', count: preview.newStudents.length),
-            _CountTab(label: 'Existing', count: preview.existing.length),
-            _CountTab(label: 'Duplicates', count: preview.duplicates.length),
-            _CountTab(label: 'Invalid', count: preview.invalid.length),
+            ),
+            _ConfirmBar(preview: preview, controller: widget.controller),
           ],
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabs,
-            children: [
-              _StudentList(
-                students: preview.newStudents
-                    .map(
-                      (draft) => _StudentRow(
-                        rowNumber: draft.rowNumber,
-                        rollNo: draft.rollNo,
-                        name: draft.name,
-                        institution: draft.institution,
-                        boardingPoint: draft.boardingPoint,
-                      ),
-                    )
-                    .toList(),
-                emptyMessage: 'No new students in this file.',
-              ),
-              _StudentList(
-                students: preview.existing
-                    .map(
-                      (match) => _StudentRow(
-                        rowNumber: match.rowNumber,
-                        rollNo: match.rollNo,
-                        name: match.name,
-                        institution: match.institution,
-                        boardingPoint: match.boardingPoint,
-                        note: match.hasChanges
-                            ? 'Update available (details differ)'
-                            : 'Already in OnBoard — no changes',
-                      ),
-                    )
-                    .toList(),
-                emptyMessage:
-                    'No students already exist with these roll numbers.',
-              ),
-              _StudentList(
-                students: preview.duplicates
-                    .map(
-                      (match) => _StudentRow(
-                        rowNumber: match.rowNumber,
-                        rollNo: match.rollNo,
-                        name: match.name,
-                        institution: match.institution,
-                        boardingPoint: match.boardingPoint,
-                        note: 'Same roll no as row ${match.firstRowNumber}',
-                      ),
-                    )
-                    .toList(),
-                emptyMessage: 'No repeated roll numbers in this file.',
-              ),
-              _StudentList(
-                students: preview.invalid
-                    .map(
-                      (match) => _StudentRow(
-                        rowNumber: match.rowNumber,
-                        rollNo: match.rollNo,
-                        name: match.name,
-                        institution: match.institution,
-                        boardingPoint: match.boardingPoint,
-                        note: match.reason,
-                        isProblem: true,
-                      ),
-                    )
-                    .toList(),
-                emptyMessage: 'Every row passed validation.',
-              ),
-            ],
-          ),
-        ),
-        _ConfirmBar(preview: preview, controller: widget.controller),
-      ],
+        );
+      },
     );
   }
 }
 
 /// File, worksheet and column mapping, so the user can see what was understood.
-class _SourceCard extends StatelessWidget {
+///
+/// A real export names every unmapped column in the sheet, so the mapping is
+/// collapsed behind a one line summary and the chips are capped. The enclosing
+/// preview header caps and scrolls this card, so an expanded mapping stays
+/// reachable on a short viewport instead of overflowing the column.
+class _SourceCard extends StatefulWidget {
   const _SourceCard({required this.preview});
 
   final ImportPreview preview;
 
   @override
+  State<_SourceCard> createState() => _SourceCardState();
+}
+
+/// How many ignored-column chips are listed before collapsing into a count.
+const _maxVisibleIgnoredChips = 6;
+
+class _SourceCardState extends State<_SourceCard> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final preview = widget.preview;
 
     return Card(
       margin: const EdgeInsets.all(12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.description_outlined, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    preview.fileName,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.description_outlined, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          preview.fileName,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Sheet "${preview.sheetName}", header on row ${preview.headerRowNumber}',
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Sheet "${preview.sheetName}", header on row ${preview.headerRowNumber}',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final field in ImportField.values)
-                  Chip(
-                    label: Text(
-                      '${field.label}: ${preview.detectedColumns[field]}',
-                    ),
-                    visualDensity: VisualDensity.compact,
+                  const SizedBox(width: 4),
+                  Icon(
+                    _expanded ? Icons.expand_less : Icons.expand_more,
+                    semanticLabel: _expanded
+                        ? 'Hide column mapping'
+                        : 'Show column mapping',
                   ),
-                for (final ignored in preview.ignoredColumns)
-                  Chip(
-                    label: Text(
-                      '${ignored.letter}: ${ignored.columnLabel} (ignored)',
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                  ),
-              ],
-            ),
-            if (preview.skippedEmptyRows > 0) ...[
-              const SizedBox(height: 8),
-              Text(
-                '${preview.skippedEmptyRows} empty '
-                '${preview.skippedEmptyRows == 1 ? 'row' : 'rows'} ignored.',
-                style: theme.textTheme.bodyMedium,
+                ],
               ),
-            ],
-          ],
-        ),
+            ),
+          ),
+          if (_expanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final field in ImportField.values)
+                        Chip(
+                          label: Text(
+                            '${field.label}: ${preview.detectedColumns[field]}',
+                          ),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      for (final ignored in preview.ignoredColumns.take(
+                        _maxVisibleIgnoredChips,
+                      ))
+                        Chip(
+                          label: Text(
+                            '${ignored.letter}: ${ignored.columnLabel} (ignored)',
+                          ),
+                          visualDensity: VisualDensity.compact,
+                          backgroundColor:
+                              theme.colorScheme.surfaceContainerHighest,
+                        ),
+                      if (preview.ignoredColumns.length >
+                          _maxVisibleIgnoredChips)
+                        Chip(
+                          label: Text(
+                            '+${preview.ignoredColumns.length - _maxVisibleIgnoredChips} more',
+                          ),
+                          visualDensity: VisualDensity.compact,
+                          backgroundColor:
+                              theme.colorScheme.surfaceContainerHighest,
+                        ),
+                    ],
+                  ),
+                  if (preview.skippedEmptyRows > 0) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      '${preview.skippedEmptyRows} empty '
+                      '${preview.skippedEmptyRows == 1 ? 'row' : 'rows'} ignored.',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -502,13 +584,18 @@ class _StudentList extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      student.rollNo.isEmpty ? '(no roll no)' : student.rollNo,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Text(
+                        student.rollNo.isEmpty
+                            ? '(no roll no)'
+                            : student.rollNo,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     Text(
                       'Row ${student.rowNumber}',
                       style: theme.textTheme.labelSmall?.copyWith(
@@ -586,11 +673,11 @@ class _ConfirmBar extends StatelessWidget {
             Text(
               preview.canImport
                   ? [
-                      if (preview.newStudents.isNotEmpty)
-                        'Add ${preview.newStudents.length} new ${preview.newStudents.length == 1 ? "student" : "students"}',
-                      if (preview.updatedStudents.isNotEmpty)
-                        'Update ${preview.updatedStudents.length} existing ${preview.updatedStudents.length == 1 ? "student" : "students"}',
-                    ].join(' and ') + '?'
+                          if (preview.newStudents.isNotEmpty)
+                            'Add ${preview.newStudents.length} new ${preview.newStudents.length == 1 ? "student" : "students"}',
+                          if (preview.updatedStudents.isNotEmpty)
+                            'Update ${preview.updatedStudents.length} existing ${preview.updatedStudents.length == 1 ? "student" : "students"}',
+                        ].join(' and ') + '?'
                   : 'Nothing to add or update',
               style: theme.textTheme.titleSmall,
             ),
@@ -609,7 +696,13 @@ class _ConfirmBar extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: controller.pickAndPreview,
                     icon: const Icon(Icons.upload_file, size: 18),
-                    label: const Text('Choose other file'),
+                    // Single line so a narrow window cannot wrap the label and
+                    // grow this bar into the roster's vertical space.
+                    label: const Text(
+                      'Choose file',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -619,7 +712,11 @@ class _ConfirmBar extends StatelessWidget {
                         ? () => _confirm(context)
                         : null,
                     icon: const Icon(Icons.check, size: 18),
-                    label: const Text('Import'),
+                    label: const Text(
+                      'Import',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
               ],
@@ -772,6 +869,10 @@ class _ResultTile extends StatelessWidget {
   }
 }
 
+/// A single To Add / To Update / To Skip counter.
+///
+/// Deliberately not an [Expanded]: the preview stacks these in a [Wrap] so
+/// they wrap onto a second line at large text scales instead of overflowing.
 class _SummaryBadge extends StatelessWidget {
   const _SummaryBadge({
     required this.label,
@@ -785,34 +886,33 @@ class _SummaryBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          children: [
-            Text(
-              '$count',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: color.shade800,
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$count',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: color.shade800,
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: color.shade800,
-              ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: color.shade800,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
