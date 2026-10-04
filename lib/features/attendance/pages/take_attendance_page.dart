@@ -454,6 +454,22 @@ class _SessionActions extends StatelessWidget {
       return const Text('No students in roster');
     }
     if (state.phase == AttendancePhase.active) {
+      if (state.presentCount == 0) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            OutlinedButton(
+              onPressed: () => notifier.discardSession(),
+              child: const Text('Discard'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: () => notifier.finishSession(),
+              child: Text('Finish (${state.tripType.label})'),
+            ),
+          ],
+        );
+      }
       return FilledButton(
         onPressed: () => notifier.finishSession(),
         child: Text('Finish (${state.tripType.label})'),

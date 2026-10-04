@@ -416,6 +416,41 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     }
   }
 
+  /// Discards the currently active session if no attendance records have been scanned.
+  ///
+  /// Prevents accidental starts from cluttering history with empty abandoned sessions.
+  Future<void> discardSession() async {
+    final id = state.sessionId;
+    if (id == null ||
+        state.presentCount > 0 ||
+        state.isMarking ||
+        state.isSessionBusy) {
+      return;
+    }
+    state = state.copyWith(isSessionBusy: true, error: null);
+    try {
+      await _sessions.deleteSession(id);
+      _resetScanCooldown();
+      state = state.copyWith(
+        phase: AttendancePhase.awaitingStart,
+        sessionId: null,
+        resumableSessionId: null,
+        isSessionBusy: false,
+        lastOutcome: null,
+        lastBarcode: null,
+        lastRecord: null,
+        lastStudent: null,
+      );
+      state = state.copyWith(roster: await _buildRoster());
+      _onSessionChanged?.call();
+    } catch (error) {
+      state = state.copyWith(
+        isSessionBusy: false,
+        error: 'Could not discard the session.\n$error',
+      );
+    }
+  }
+
   /// Matches a barcode from the camera.
   ///
   /// An unchanged value is swallowed for [_scanCooldown], so a card resting in

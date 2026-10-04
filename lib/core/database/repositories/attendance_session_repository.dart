@@ -275,4 +275,19 @@ class AttendanceSessionRepository {
       _db.attendanceSessions,
     )..where((tbl) => tbl.id.equals(sessionId))).getSingleOrNull();
   }
+
+  /// Deletes a session and its associated records and roster snapshot.
+  Future<void> deleteSession(int id) {
+    return _db.transaction(() async {
+      await (_db.delete(_db.attendanceRecords)
+            ..where((t) => t.sessionId.equals(id)))
+          .go();
+      await (_db.delete(_db.attendanceSessionRoster)
+            ..where((t) => t.sessionId.equals(id)))
+          .go();
+      await (_db.delete(_db.attendanceSessions)
+            ..where((t) => t.id.equals(id)))
+          .go();
+    });
+  }
 }

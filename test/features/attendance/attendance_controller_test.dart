@@ -619,4 +619,44 @@ void main() {
       },
     );
   });
+
+  group('discardSession', () {
+    test('discards active session when no students are present', () async {
+      await addStudent('24BMR016');
+      var changed = 0;
+      final notifier = controller(onSessionChanged: () => changed++);
+      await notifier.load(forDate: now);
+      await notifier.startSession();
+      final sessionId = notifier.state.sessionId!;
+
+      expect(notifier.state.phase, AttendancePhase.active);
+      expect(await sessions.findById(sessionId), isNotNull);
+
+      await notifier.discardSession();
+
+      expect(notifier.state.phase, AttendancePhase.awaitingStart);
+      expect(notifier.state.sessionId, isNull);
+      expect(notifier.state.resumableSessionId, isNull);
+      expect(await sessions.findById(sessionId), isNull);
+      expect(changed, 2); // 1 for start, 1 for discard
+    });
+
+    test('refuses to discard if any student has been marked present', () async {
+      await addStudent('24BMR016');
+      final notifier = controller();
+      await notifier.load(forDate: now);
+      await notifier.startSession();
+      final sessionId = notifier.state.sessionId!;
+      await notifier.scan('732924BMR016');
+
+      expect(notifier.state.presentCount, 1);
+
+      await notifier.discardSession();
+
+      // Session remains active and intact
+      expect(notifier.state.phase, AttendancePhase.active);
+      expect(notifier.state.sessionId, sessionId);
+      expect(await sessions.findById(sessionId), isNotNull);
+    });
+  });
 }
