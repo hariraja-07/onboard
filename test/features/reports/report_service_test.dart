@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:archive/archive.dart';
 import 'package:drift/native.dart';
 import 'package:excel_community/excel_community.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +11,26 @@ import 'package:onboard/core/database/repositories/attendance_session_roster_rep
 import 'package:onboard/core/database/repositories/student_repository.dart';
 import 'package:onboard/features/attendance/models/attendance_models.dart';
 import 'package:onboard/features/reports/report_service.dart';
+
+/// The worksheet XML for every sheet in an encoded workbook.
+///
+/// Styles have to be checked in the XML rather than through the reader: in
+/// excel_community `CellStyle` is write-only, and a fill the writer cannot
+/// serialise is dropped without any error, so the decode looks fine either way.
+List<String> worksheets(List<int> xlsx) => ZipDecoder()
+    .decodeBytes(xlsx)
+    .files
+    .where((f) => f.name.startsWith('xl/worksheets/sheet'))
+    .map((f) => utf8.decode(f.content as List<int>))
+    .toList();
+
+String stylesXml(List<int> xlsx) => utf8.decode(
+  ZipDecoder()
+      .decodeBytes(xlsx)
+      .files
+      .firstWhere((f) => f.name == 'xl/styles.xml')
+      .content as List<int>,
+);
 
 void main() {
   late AppDatabase db;
@@ -293,17 +316,109 @@ void main() {
           ReportService.rosterSheet,
         ]),
       );
-      // Header, then one row per student.
-      expect(roster, hasLength(3));
-      expect(roster.first.first!.value.toString(), 'Roll No');
-      expect(roster[1][0]!.value.toString(), '24BMR016');
-      expect(roster[1][4]!.value.toString(), 'Present');
-      expect(roster[2][0]!.value.toString(), '24BMR017');
+      // Title, then header, then one row per student.
+      expect(roster, hasLength(4));
       expect(
-        roster[2][4]!.value.toString(),
+        roster.first.first!.value.toString(),
+        'Roster — 2026-10-03 · Morning',
+        reason: 'the sheet must record which session it describes',
+      );
+      expect(roster[1].first!.value.toString(), 'Roll No');
+      expect(roster[2][0]!.value.toString(), '24BMR016');
+      expect(roster[2][4]!.value.toString(), 'Present');
+      expect(roster[3][0]!.value.toString(), '24BMR017');
+      expect(
+        roster[3][4]!.value.toString(),
         'Absent',
         reason: 'a student with no record row must still be listed',
       );
+    });
+
+    test('the Session sheet names its own columns, not the roster ones', () async {
+      final sessionId = await sessions.createOpen(
+        attendanceDate: DateTime(2026, 10, 3),
+        createdAt: DateTime(2026, 10, 3, 8),
+      );
+      final alice = await addStudent('24BMR016', name: 'Alice');
+      final bob = await addStudent('24BMR017', name: 'Bob');
+      await rosters.insertRoster(sessionId, [alice, bob]);
+      await records.markPresent(
+        sessionId: sessionId,
+        student: alice,
+        rawBarcode: '24BMR016',
+        scannedAt: DateTime(2026, 10, 3, 9, 5),
+      );
+
+      final bundle = await reports.buildBundle();
+      final summary = bundle.report.sessions.singleWhere(
+        (s) => s.sessionId == sessionId,
+      );
+      final rows = Excel.decodeBytes(
+        await reports.buildSessionExcel(summary),
+      ).tables[ReportService.sessionSheet]!.rows;
+
+      expect(
+        rows.first.first!.value.toString(),
+        startsWith('Attendance Session'),
+      );
+      expect(
+        rows[1].map((cell) => cell?.value.toString()).toList(),
+        ['Date', 'Trip', 'Status', 'Present/Total', 'Attendance %'],
+        reason: 'the summary row is a session, so it must not borrow roster columns',
+      );
+      expect(
+        rows[2].map((cell) => cell?.value.toString()).toList(),
+        ['2026-10-03', 'Morning', 'Open', '1/2', '50.0%'],
+      );
+    });
+
+    test('the title is merged and the brand fill reaches the file', () async {
+      final sessionId = await sessions.createOpen(
+        attendanceDate: DateTime(2026, 10, 3),
+        createdAt: DateTime(2026, 10, 3, 8),
+      );
+      final alice = await addStudent('24BMR016', name: 'Alice');
+      await rosters.insertRoster(sessionId, [alice]);
+
+      final bundle = await reports.buildBundle();
+      final summary = bundle.report.sessions.singleWhere(
+        (s) => s.sessionId == sessionId,
+      );
+      final bytes = await reports.buildSessionExcel(summary);
+      final styles = stylesXml(bytes);
+
+      // The writer only emits a solid fill for a colour whose alpha byte is FF.
+      // A bare RGB hex is dropped silently, which left every header as white text
+      // on an unfilled background with nothing to notice it.
+      expect(
+        styles,
+        contains('FF1A73E8'),
+        reason: 'the brand fill must survive serialisation',
+      );
+
+      // Every fillId has to point at a fill that actually exists, or the count is
+      // a lie and readers resolve the style to nothing.
+      final fills =
+          RegExp(r'<fills[\s\S]*?</fills>').firstMatch(styles)!.group(0)!;
+      final present = RegExp(r'<fill[ />]').allMatches(fills).length;
+      final xfs =
+          RegExp(r'<cellXfs[\s\S]*?</cellXfs>').firstMatch(styles)!.group(0)!;
+      final fillIds = RegExp(r'fillId="(\d+)"')
+          .allMatches(xfs)
+          .map((m) => int.parse(m.group(1)!));
+      for (final id in fillIds) {
+        expect(id, lessThan(present), reason: 'fillId $id has no fill entry');
+      }
+
+      final sheets = worksheets(bytes);
+      expect(sheets, hasLength(2));
+      for (final xml in sheets) {
+        expect(
+          xml,
+          contains(RegExp(r'<mergeCell ref="A1:[A-Z]+1"')),
+          reason: 'the title has to span the sheet, not one column',
+        );
+      }
     });
 
     test('reads the frozen roster rather than the live student name', () async {

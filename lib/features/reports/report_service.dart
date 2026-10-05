@@ -134,7 +134,10 @@ class ReportService {
   static const String sessionSheet = 'Session';
   static const String rosterSheet = 'Roster';
 
-  static const String _brandPrimaryHex = '1A73E8';
+  /// ARGB, not RGB: the writer only emits a solid fill for a colour whose alpha
+  /// byte is FF, and silently drops anything else, so a bare `1A73E8` leaves the
+  /// header text white on white.
+  static const String _brandPrimaryHex = 'FF1A73E8';
 
   static const List<String> _sessionRosterHeaders = [
     'Roll No',
@@ -143,6 +146,16 @@ class ReportService {
     'Boarding Point',
     'Status',
     'Scanned At',
+  ];
+
+  /// The one row of the Session sheet is the session's own summary, not a
+  /// student, so it names its own columns rather than borrowing the roster's.
+  static const List<String> _sessionSummaryHeaders = [
+    'Date',
+    'Trip',
+    'Status',
+    'Present/Total',
+    'Attendance %',
   ];
 
   /// A timestamped filename so repeated exports don't overwrite each other.
@@ -240,10 +253,13 @@ ORDER BY s.attendance_date DESC, r.roll_no ASC
     ];
   }
 
-  /// One sheet listing the whole roster of one session with each student's
-  /// outcome.
+  /// A two-sheet workbook: the session's own summary, and the whole roster with
+  /// each student's outcome.
   ///
-  /// One query for everything the sheet needs: the frozen roster left joined to
+  /// Both sheets carry the session's date and trip in a title row, so neither
+  /// one has to be read against the other to know what it covers.
+  ///
+  /// One query for everything the roster needs: the frozen roster left joined to
   /// the records, so a student with no row reads as absent. Names come from the
   /// snapshot rather than the student table, matching what the session screen
   /// shows, so a later rename cannot rewrite an exported past session.
@@ -268,32 +284,46 @@ ORDER BY r.roll_no ASC
 
     final excel = Excel.createExcel();
     excel.delete('Sheet1');
-    _writeSheet(excel, sessionSheet, _sessionRosterHeaders, [
+    final scope =
+        '${formatDate(session.attendanceDate)} · ${session.tripType.label}';
+    _writeSheet(
+      excel,
+      sessionSheet,
+      _sessionSummaryHeaders,
       [
-        formatDate(session.attendanceDate),
-        session.tripType.label,
-        session.status == AttendanceSessionStatus.completed
-            ? 'Completed'
-            : 'Open',
-        '$present/$expected',
-        '${session.percent.toStringAsFixed(1)}%',
-      ],
-    ]);
-    _writeSheet(excel, rosterSheet, _sessionRosterHeaders, [
-      for (final row in rows)
         [
-          row.read<String>('roll_no'),
-          row.read<String>('name'),
-          row.read<String>('institution'),
-          row.read<String>('boarding_point'),
-          row.readNullable<DateTime>('scanned_at') == null
-              ? 'Absent'
-              : 'Present',
-          row.readNullable<DateTime>('scanned_at') == null
-              ? ''
-              : formatDateTime(row.read<DateTime>('scanned_at')),
+          formatDate(session.attendanceDate),
+          session.tripType.label,
+          session.status == AttendanceSessionStatus.completed
+              ? 'Completed'
+              : 'Open',
+          '$present/$expected',
+          '${session.percent.toStringAsFixed(1)}%',
         ],
-    ]);
+      ],
+      title: 'Attendance Session — $scope',
+    );
+    _writeSheet(
+      excel,
+      rosterSheet,
+      _sessionRosterHeaders,
+      [
+        for (final row in rows)
+          [
+            row.read<String>('roll_no'),
+            row.read<String>('name'),
+            row.read<String>('institution'),
+            row.read<String>('boarding_point'),
+            row.readNullable<DateTime>('scanned_at') == null
+                ? 'Absent'
+                : 'Present',
+            row.readNullable<DateTime>('scanned_at') == null
+                ? ''
+                : formatDateTime(row.read<DateTime>('scanned_at')),
+          ],
+      ],
+      title: 'Roster — $scope',
+    );
     excel.setDefaultSheet(rosterSheet);
     return excel.encode() ?? const <int>[];
   }
@@ -407,14 +437,45 @@ ORDER BY r.roll_no ASC
     return value;
   }
 
+  /// Writes [headers] and [rows] into a sheet named [name].
+  ///
+  /// A [title], when given, becomes a merged banner across the top and pushes
+  /// the column headers to the second row, so the sheet records what it covers
+  /// without the reader having to infer it from the data. Both rows stay frozen.
+  ///
+  /// The banner keeps its style from the top-left cell alone: [Sheet.merge]
+  /// discards the cells it spans, and `setMergedCellStyle` only applies when the
+  /// style carries a border, so styling the range afterwards is not dependable.
   void _writeSheet(
     Excel excel,
     String name,
     List<String> headers,
-    List<List<String>> rows,
-  ) {
+    List<List<String>> rows, {
+    String? title,
+  }) {
     final sheet = excel[name];
-    sheet.frozenRows = 1;
+    final hasTitle = title != null && headers.isNotEmpty;
+    final headerRow = hasTitle ? 1 : 0;
+    final bodyRow = headerRow + 1;
+    sheet.frozenRows = headerRow + 1;
+
+    final titleStyle = CellStyle(
+      bold: true,
+      fontSize: 14,
+      fontColorHex: ExcelColor.white,
+      backgroundColorHex: ExcelColor.fromHexString(_brandPrimaryHex),
+      verticalAlign: VerticalAlign.Center,
+    );
+
+    if (hasTitle) {
+      final start = CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0);
+      final end = CellIndex.indexByColumnRow(
+        columnIndex: headers.length - 1,
+        rowIndex: 0,
+      );
+      sheet.updateCell(start, TextCellValue(title), cellStyle: titleStyle);
+      sheet.merge(start, end);
+    }
 
     final headerStyle = CellStyle(
       bold: true,
@@ -426,7 +487,10 @@ ORDER BY r.roll_no ASC
 
     for (var column = 0; column < headers.length; column++) {
       sheet.updateCell(
-        CellIndex.indexByColumnRow(columnIndex: column, rowIndex: 0),
+        CellIndex.indexByColumnRow(
+          columnIndex: column,
+          rowIndex: headerRow,
+        ),
         TextCellValue(headers[column]),
         cellStyle: headerStyle,
       );
@@ -437,7 +501,10 @@ ORDER BY r.roll_no ASC
       final values = rows[row];
       for (var column = 0; column < values.length; column++) {
         sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: column, rowIndex: row + 1),
+          CellIndex.indexByColumnRow(
+            columnIndex: column,
+            rowIndex: row + bodyRow,
+          ),
           TextCellValue(values[column]),
           cellStyle: bodyStyle,
         );
