@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../students_controller.dart';
 import '../../../core/database/database.dart';
+import '../../../core/theme/spacing.dart';
 import '../../../core/widgets/skeleton.dart';
 
 class StudentsPage extends ConsumerStatefulWidget {
@@ -89,9 +90,9 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
     final boardingPoints = state.boardingPoints;
 
     return Card(
-      margin: const EdgeInsets.all(12),
+      margin: Insets.allSm,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: Insets.allSm,
         child: Column(
           children: [
             TextField(
@@ -103,7 +104,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
               ),
               onChanged: notifier.setSearchQuery,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: Insets.xs),
             DropdownButtonFormField<String>(
               isExpanded: true,
               isDense: true,
@@ -112,12 +113,15 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                 labelText: 'Institution',
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
+                  horizontal: Insets.md,
+                  vertical: Insets.sm,
                 ),
               ),
               items: [
-                const DropdownMenuItem(value: '', child: Text('All Institutions')),
+                const DropdownMenuItem(
+                  value: '',
+                  child: Text('All Institutions'),
+                ),
                 ...institutions.map(
                   (i) => DropdownMenuItem(
                     value: i,
@@ -129,7 +133,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                 value?.isNotEmpty == true ? value : null,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: Insets.xs),
             DropdownButtonFormField<String>(
               isExpanded: true,
               isDense: true,
@@ -138,12 +142,15 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                 labelText: 'Boarding Point',
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
+                  horizontal: Insets.md,
+                  vertical: Insets.sm,
                 ),
               ),
               items: [
-                const DropdownMenuItem(value: '', child: Text('All Boarding Points')),
+                const DropdownMenuItem(
+                  value: '',
+                  child: Text('All Boarding Points'),
+                ),
                 ...boardingPoints.map(
                   (b) => DropdownMenuItem(
                     value: b,
@@ -163,7 +170,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
 
   Widget _buildStats(StudentsState state) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: Insets.sm),
       child: Row(
         children: [
           Text(
@@ -192,15 +199,11 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
   Widget _buildStudentList(StudentsState state) {
     if (state.isLoading) {
       return ListView.builder(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
+        padding: const EdgeInsets.fromLTRB(Insets.sm, Insets.xs, Insets.sm, 88),
         itemCount: 6,
         itemBuilder: (context, index) => const Padding(
-          padding: EdgeInsets.only(bottom: 8),
-          child: SkeletonBox(
-            width: double.infinity,
-            height: 72,
-            radius: 12,
-          ),
+          padding: EdgeInsets.only(bottom: Insets.xs),
+          child: SkeletonBox(width: double.infinity, height: 72, radius: 12),
         ),
       );
     }
@@ -208,7 +211,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
     if (state.error != null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: Insets.allLg,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -217,7 +220,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                 size: 64,
                 color: Theme.of(context).colorScheme.error,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: Insets.md),
               Text(
                 'Could not load students',
                 style: TextStyle(
@@ -225,9 +228,9 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: Insets.xs),
               Text(state.error!, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
+              const SizedBox(height: Insets.md),
               FilledButton.icon(
                 onPressed: () =>
                     ref.read(studentsProvider.notifier).loadStudents(),
@@ -246,7 +249,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
       final filteredOut = state.students.isNotEmpty;
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: Insets.allLg,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -255,7 +258,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                 size: 64,
                 color: Theme.of(context).colorScheme.outline,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: Insets.md),
               Text(
                 filteredOut
                     ? 'No students match your filters'
@@ -266,7 +269,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: Insets.xs),
               if (filteredOut)
                 TextButton(
                   onPressed: () {
@@ -284,17 +287,17 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
+      padding: const EdgeInsets.fromLTRB(Insets.sm, Insets.xs, Insets.sm, 88),
       itemCount: students.length,
       itemBuilder: (context, index) {
         final student = students[index];
         final theme = Theme.of(context);
         return Card(
-          margin: const EdgeInsets.only(bottom: 8),
+          margin: EdgeInsets.only(bottom: Insets.xs),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
+              horizontal: Insets.md,
+              vertical: Insets.xs,
             ),
             onTap: () => _showStudentForm(context, student: student),
             title: Text(
@@ -304,7 +307,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 4),
+                const SizedBox(height: Insets.xxs),
                 Text(
                   '${student.rollNo} • ${student.boardingPoint}',
                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -359,10 +362,10 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
           builder: (ctx, scrollController) => SingleChildScrollView(
             controller: scrollController,
             padding: EdgeInsets.fromLTRB(
-              16,
-              8,
-              16,
-              MediaQuery.of(ctx).viewInsets.bottom + 24,
+              Insets.md,
+              Insets.xs,
+              Insets.md,
+              MediaQuery.of(ctx).viewInsets.bottom + Insets.lg,
             ),
             child: Form(
               key: formKey,
@@ -374,7 +377,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                     isEditing ? 'Edit Student' : 'Add Student',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: Insets.md),
                   TextFormField(
                     controller: rollNoCtrl,
                     decoration: const InputDecoration(
@@ -388,12 +391,10 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Insets.sm),
                   TextFormField(
                     controller: nameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Name *',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Name *'),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
                         return 'Name is required';
@@ -401,7 +402,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Insets.sm),
                   TextFormField(
                     controller: institutionCtrl,
                     decoration: const InputDecoration(
@@ -414,7 +415,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Insets.sm),
                   TextFormField(
                     controller: boardingPointCtrl,
                     decoration: const InputDecoration(
@@ -427,7 +428,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: Insets.md),
                   FilledButton(
                     onPressed: () async {
                       if (!formKey.currentState!.validate()) {
@@ -466,7 +467,7 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
                     },
                     child: Text(isEditing ? 'Update' : 'Add'),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: Insets.xs),
                   if (isEditing)
                     OutlinedButton(
                       onPressed: () {

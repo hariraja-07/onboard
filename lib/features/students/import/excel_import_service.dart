@@ -351,7 +351,8 @@ class ExcelImportService {
 
       if (existingRollNos.contains(rollNo)) {
         final current = existingStudents[rollNo];
-        final hasChanges = current != null &&
+        final hasChanges =
+            current != null &&
             (current.name != name ||
                 current.institution != institution ||
                 current.boardingPoint != boardingPoint);

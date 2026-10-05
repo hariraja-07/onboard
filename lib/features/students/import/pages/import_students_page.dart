@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../import_controller.dart';
+import '../../../../core/theme/spacing.dart';
 import '../excel_import_models.dart';
 
 /// Import screen: pick a workbook, review what would happen, then confirm.
@@ -52,7 +53,7 @@ class _ImportStudentsPageState extends ConsumerState<ImportStudentsPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const CircularProgressIndicator(),
-              const SizedBox(height: 16),
+              const SizedBox(height: Insets.md),
               Text(_busyLabel(state.status)),
             ],
           ),
@@ -99,10 +100,7 @@ class _ImportStudentsPageState extends ConsumerState<ImportStudentsPage> {
 
 /// Landing onboarding view when no file is currently selected.
 class _IdleView extends StatelessWidget {
-  const _IdleView({
-    required this.onPick,
-    required this.onDownloadTemplate,
-  });
+  const _IdleView({required this.onPick, required this.onDownloadTemplate});
 
   final VoidCallback onPick;
   final VoidCallback onDownloadTemplate;
@@ -112,14 +110,16 @@ class _IdleView extends StatelessWidget {
     final theme = Theme.of(context);
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: Insets.allLg,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(Insets.md),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                color: theme.colorScheme.primaryContainer.withValues(
+                  alpha: 0.5,
+                ),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -128,14 +128,14 @@ class _IdleView extends StatelessWidget {
                 color: theme.colorScheme.primary,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: Insets.md),
             Text(
               'Import Student Roster',
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: Insets.xs),
             Text(
               'Upload an Excel (.xlsx) file with student roll numbers, names, institutions, and boarding points.',
               textAlign: TextAlign.center,
@@ -149,7 +149,7 @@ class _IdleView extends StatelessWidget {
               icon: const Icon(Icons.folder_open_outlined),
               label: const Text('Choose Excel File (.xlsx)'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: Insets.sm),
             OutlinedButton.icon(
               onPressed: onDownloadTemplate,
               icon: const Icon(Icons.download_outlined),
@@ -172,7 +172,7 @@ class _ErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: Insets.allLg,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -181,13 +181,13 @@ class _ErrorView extends StatelessWidget {
               size: 56,
               color: Theme.of(context).colorScheme.error,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Insets.md),
             Text(
               message,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: Insets.lg),
             FilledButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.upload_file),
@@ -248,8 +248,8 @@ class _PreviewViewState extends State<_PreviewView>
                     _SourceCard(preview: preview),
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 4,
+                        horizontal: Insets.md,
+                        vertical: Insets.xxs,
                       ),
                       child: Wrap(
                         spacing: 8,
@@ -284,7 +284,10 @@ class _PreviewViewState extends State<_PreviewView>
               tabs: [
                 _CountTab(label: 'New', count: preview.newStudents.length),
                 _CountTab(label: 'Existing', count: preview.existing.length),
-_CountTab(label: 'Duplicates', count: preview.duplicates.length),
+                _CountTab(
+                  label: 'Duplicates',
+                  count: preview.duplicates.length,
+                ),
                 _CountTab(label: 'Invalid', count: preview.invalid.length),
               ],
             ),
@@ -393,7 +396,7 @@ class _SourceCardState extends State<_SourceCard> {
     final preview = widget.preview;
 
     return Card(
-      margin: const EdgeInsets.all(12),
+      margin: Insets.allSm,
       clipBehavior: Clip.antiAlias,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -402,11 +405,16 @@ class _SourceCardState extends State<_SourceCard> {
           InkWell(
             onTap: () => setState(() => _expanded = !_expanded),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+              padding: const EdgeInsets.fromLTRB(
+                Insets.sm,
+                Insets.sm,
+                Insets.xs,
+                Insets.sm,
+              ),
               child: Row(
                 children: [
                   const Icon(Icons.description_outlined, size: 20),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: Insets.xs),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,7 +435,7 @@ class _SourceCardState extends State<_SourceCard> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: Insets.xxs),
                   Icon(
                     _expanded ? Icons.expand_less : Icons.expand_more,
                     semanticLabel: _expanded
@@ -440,7 +448,12 @@ class _SourceCardState extends State<_SourceCard> {
           ),
           if (_expanded)
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              padding: const EdgeInsets.fromLTRB(
+                Insets.sm,
+                0,
+                Insets.sm,
+                Insets.sm,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -479,7 +492,7 @@ class _SourceCardState extends State<_SourceCard> {
                     ],
                   ),
                   if (preview.skippedEmptyRows > 0) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: Insets.xs),
                     Text(
                       '${preview.skippedEmptyRows} empty '
                       '${preview.skippedEmptyRows == 1 ? 'row' : 'rows'} ignored.',
@@ -509,9 +522,12 @@ class _CountTab extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(label),
-          const SizedBox(width: 6),
+          const SizedBox(width: Insets.xs),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Insets.xs,
+              vertical: 2,
+            ),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.secondaryContainer,
               borderRadius: BorderRadius.circular(10),
@@ -558,7 +574,7 @@ class _StudentList extends StatelessWidget {
     if (students.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: Insets.allLg,
           child: Text(
             emptyMessage,
             textAlign: TextAlign.center,
@@ -569,16 +585,19 @@ class _StudentList extends StatelessWidget {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Insets.sm,
+        vertical: Insets.xs,
+      ),
       itemCount: students.length,
       itemBuilder: (context, index) {
         final student = students[index];
         final theme = Theme.of(context);
 
         return Card(
-          margin: const EdgeInsets.only(bottom: 8),
+          margin: EdgeInsets.only(bottom: Insets.xs),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: Insets.allSm,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -595,7 +614,7 @@ class _StudentList extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: Insets.xs),
                     Text(
                       'Row ${student.rowNumber}',
                       style: theme.textTheme.labelSmall?.copyWith(
@@ -605,7 +624,7 @@ class _StudentList extends StatelessWidget {
                   ],
                 ),
                 if (student.name.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: Insets.xxs),
                   Text(student.name, style: theme.textTheme.bodyLarge),
                 ],
                 if (student.institution.isNotEmpty)
@@ -616,7 +635,7 @@ class _StudentList extends StatelessWidget {
                     style: theme.textTheme.bodyMedium,
                   ),
                 if (student.note != null) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: Insets.xs),
                   Row(
                     children: [
                       Icon(
@@ -628,7 +647,7 @@ class _StudentList extends StatelessWidget {
                             ? theme.colorScheme.error
                             : theme.colorScheme.primary,
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: Insets.xs),
                       Expanded(
                         child: Text(
                           student.note!,
@@ -665,7 +684,7 @@ class _ConfirmBar extends StatelessWidget {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: Insets.allSm,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -677,7 +696,8 @@ class _ConfirmBar extends StatelessWidget {
                             'Add ${preview.newStudents.length} new ${preview.newStudents.length == 1 ? "student" : "students"}',
                           if (preview.updatedStudents.isNotEmpty)
                             'Update ${preview.updatedStudents.length} existing ${preview.updatedStudents.length == 1 ? "student" : "students"}',
-                        ].join(' and ') + '?'
+                        ].join(' and ') +
+                        '?'
                   : 'Nothing to add or update',
               style: theme.textTheme.titleSmall,
             ),
@@ -689,7 +709,7 @@ class _ConfirmBar extends StatelessWidget {
                 '${preview.invalid.length} invalid.',
                 style: theme.textTheme.bodySmall,
               ),
-            const SizedBox(height: 10),
+            const SizedBox(height: Insets.sm),
             Row(
               children: [
                 Expanded(
@@ -705,7 +725,7 @@ class _ConfirmBar extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: Insets.xs),
                 Expanded(
                   child: FilledButton.icon(
                     onPressed: preview.canImport
@@ -731,8 +751,10 @@ class _ConfirmBar extends StatelessWidget {
     final newCount = preview.newStudents.length;
     final updateCount = preview.updatedStudents.length;
     final parts = [
-      if (newCount > 0) 'add $newCount new ${newCount == 1 ? "student" : "students"}',
-      if (updateCount > 0) 'update $updateCount existing ${updateCount == 1 ? "student" : "students"}',
+      if (newCount > 0)
+        'add $newCount new ${newCount == 1 ? "student" : "students"}',
+      if (updateCount > 0)
+        'update $updateCount existing ${updateCount == 1 ? "student" : "students"}',
     ].join(' and ');
 
     final confirmed = await showDialog<bool>(
@@ -771,7 +793,7 @@ class _ResultView extends ConsumerWidget {
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: Insets.allLg,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -780,15 +802,15 @@ class _ResultView extends ConsumerWidget {
               size: 72,
               color: theme.colorScheme.primary,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Insets.md),
             Text('Import complete', style: theme.textTheme.headlineSmall),
-            const SizedBox(height: 4),
+            const SizedBox(height: Insets.xxs),
             Text(
               '${summary.fileName} · ${summary.sheetName}',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: Insets.lg),
             _ResultTile(
               icon: Icons.person_add_alt_1,
               color: theme.colorScheme.primary,
@@ -820,7 +842,7 @@ class _ResultView extends ConsumerWidget {
               label: 'Skipped, invalid',
               value: summary.invalidSkipped,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: Insets.lg),
             FilledButton.icon(
               onPressed: () {
                 ref.read(studentImportControllerProvider.notifier).reset();
@@ -854,7 +876,7 @@ class _ResultTile extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(bottom: Insets.xs),
       child: ListTile(
         leading: Icon(icon, color: color),
         title: Text(label),
@@ -887,10 +909,13 @@ class _SummaryBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      padding: const EdgeInsets.symmetric(
+        vertical: Insets.xs,
+        horizontal: Insets.sm,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: Radii.allXs,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
