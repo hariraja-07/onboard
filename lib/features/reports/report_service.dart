@@ -439,13 +439,14 @@ ORDER BY r.roll_no ASC
 
   /// Writes [headers] and [rows] into a sheet named [name].
   ///
-  /// A [title], when given, becomes a merged banner across the top and pushes
-  /// the column headers to the second row, so the sheet records what it covers
-  /// without the reader having to infer it from the data. Both rows stay frozen.
+  /// A [title], when given, is merged across the top and pushes the column
+  /// headers to the second row, so the sheet records what it covers without the
+  /// reader having to infer it from the data. Both rows stay frozen. The title is
+  /// deliberately plain: the filled header row is the only coloured band.
   ///
-  /// The banner keeps its style from the top-left cell alone: [Sheet.merge]
-  /// discards the cells it spans, and `setMergedCellStyle` only applies when the
-  /// style carries a border, so styling the range afterwards is not dependable.
+  /// [Sheet.merge] discards the cells it spans, and `setMergedCellStyle` only
+  /// applies when the style carries a border, so a fill has to live on the
+  /// top-left cell to survive.
   void _writeSheet(
     Excel excel,
     String name,
@@ -462,8 +463,6 @@ ORDER BY r.roll_no ASC
     final titleStyle = CellStyle(
       bold: true,
       fontSize: 14,
-      fontColorHex: ExcelColor.white,
-      backgroundColorHex: ExcelColor.fromHexString(_brandPrimaryHex),
       verticalAlign: VerticalAlign.Center,
     );
 

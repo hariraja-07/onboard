@@ -419,6 +419,24 @@ void main() {
           reason: 'the title has to span the sheet, not one column',
         );
       }
+
+      // The title is a heading, not a second banner: the filled header row is the
+      // only coloured band. Resolve A1's style index through to its fill.
+      final xfList = RegExp(r'<xf\b[^>]*/?>')
+          .allMatches(xfs)
+          .map((m) => m.group(0)!)
+          .toList();
+      for (final xml in sheets) {
+        final title = RegExp(r'<c r="A1" s="(\d+)"').firstMatch(xml);
+        expect(title, isNotNull, reason: 'the title cell needs a style index');
+        final fill = RegExp(r'fillId="(\d+)"')
+            .firstMatch(xfList[int.parse(title!.group(1)!)])!;
+        expect(
+          fill.group(1),
+          '0',
+          reason: 'the title must not carry a fill of its own',
+        );
+      }
     });
 
     test('reads the frozen roster rather than the live student name', () async {
