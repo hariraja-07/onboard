@@ -1,0 +1,15 @@
+# Platform runner scaffolding - not application code.
+# These are Flutter template files: no domain logic, but they mint a large
+# share of the graph (Win32Window, FlutterWindow, WndProc, GeneratedPluginRegistrant)
+# and dilute cohesion scores for the modules we actually care about.
+android/
+ios/
+linux/
+macos/
+windows/
+web/
+
+# build_runner output. Regenerated on `dart run build_runner build`, so its nodes
+# go stale and add volume without adding meaning. The hand-written Drift tables
+# in lib/core/database/tables.dart carry the real schema.
+lib/core/database/database.g.dart
