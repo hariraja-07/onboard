@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'spacing.dart';
+
 /// Shared AppTheme so every screen reads the same tones in either mode.
 class AppTheme {
   AppTheme._();
@@ -33,17 +35,13 @@ class AppTheme {
   static ThemeData _build(Brightness brightness) {
     final scheme = _scheme(brightness);
 
-    final buttonShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
-    );
-    final buttonPadding = const EdgeInsets.symmetric(
-      horizontal: 24,
-      vertical: 14,
-    );
     // Buttons, cards and sheets share one radius ramp so nested shapes step
     // inward instead of competing at the same size.
-    final cardShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
+    final buttonShape = RoundedRectangleBorder(borderRadius: Radii.allSm);
+    final cardShape = RoundedRectangleBorder(borderRadius: Radii.allMd);
+    final buttonPadding = const EdgeInsets.symmetric(
+      horizontal: Insets.lg,
+      vertical: Insets.md,
     );
 
     return ThemeData(
@@ -81,28 +79,28 @@ class AppTheme {
         filled: true,
         fillColor: scheme.surfaceContainerHighest,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: Radii.allSm,
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: Radii.allSm,
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: Radii.allSm,
           borderSide: BorderSide(color: scheme.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: Radii.allSm,
           borderSide: BorderSide(color: scheme.error, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: Radii.allSm,
           borderSide: BorderSide(color: scheme.error, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
+          horizontal: Insets.md,
+          vertical: Insets.md,
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
@@ -154,7 +152,7 @@ class AppTheme {
         backgroundColor: scheme.primary,
         foregroundColor: scheme.onPrimary,
         elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: Radii.allMd),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: scheme.surface,
@@ -182,7 +180,7 @@ class AppTheme {
         backgroundColor: scheme.surfaceContainerHighest,
         selectedColor: scheme.primaryContainer,
         side: BorderSide.none,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: Radii.allXs),
       ),
       // Dividers use outlineVariant so they stay visible in dark mode, where
       // outline sits too close to the surface to read as a line.
@@ -194,7 +192,7 @@ class AppTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: scheme.surface,
         surfaceTintColor: scheme.surfaceTint,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: Radii.allLg),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: scheme.surface,
@@ -207,7 +205,7 @@ class AppTheme {
         behavior: SnackBarBehavior.floating,
         backgroundColor: scheme.inverseSurface,
         contentTextStyle: TextStyle(color: scheme.onInverseSurface),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: Radii.allSm),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: scheme.primary,
