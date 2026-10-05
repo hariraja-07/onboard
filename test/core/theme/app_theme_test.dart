@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onboard/core/theme/app_theme.dart';
+import 'package:onboard/core/theme/spacing.dart';
 
 /// Relative luminance per WCAG 2.1.
 double _luminance(Color c) {
@@ -194,9 +195,55 @@ void main() {
     final lightShape = AppTheme.light.cardTheme.shape;
     final darkShape = AppTheme.dark.cardTheme.shape;
     expect(lightShape, darkShape);
-    expect(
-      (lightShape! as RoundedRectangleBorder).borderRadius,
-      BorderRadius.circular(16),
-    );
+    expect((lightShape! as RoundedRectangleBorder).borderRadius, Radii.allMd);
+  });
+
+  group('semantic tones outside ColorScheme', () {
+    test('success clears 4.5:1 as text on its container', () {
+      for (final brightness in Brightness.values) {
+        final on = AppColors.onSuccessContainerFor(brightness);
+        final bg = AppColors.successContainerFor(brightness);
+        expect(
+          _contrast(on, bg),
+          greaterThanOrEqualTo(4.5),
+          reason: 'success $brightness',
+        );
+      }
+    });
+
+    test('warning clears 4.5:1 as text on its container', () {
+      for (final brightness in Brightness.values) {
+        expect(
+          _contrast(
+            AppColors.warningFor(brightness),
+            AppColors.warningContainerFor(brightness),
+          ),
+          greaterThanOrEqualTo(4.5),
+          reason: 'warning $brightness',
+        );
+      }
+    });
+
+    test('success and warning are distinguishable hues, not tints', () {
+      expect(
+        AppColors.successFor(Brightness.light),
+        isNot(AppColors.warningFor(Brightness.light)),
+      );
+      expect(
+        AppColors.successFor(Brightness.dark),
+        isNot(AppColors.warningFor(Brightness.dark)),
+      );
+    });
+
+    test('onSuccess differs from the success fill it sits on', () {
+      // A tick drawn on a filled circle needs its own foreground; returning
+      // the fill colour itself made the tick invisible.
+      for (final brightness in Brightness.values) {
+        expect(
+          AppColors.onSuccessFor(brightness),
+          isNot(AppColors.successFor(brightness)),
+        );
+      }
+    });
   });
 }

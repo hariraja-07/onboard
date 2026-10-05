@@ -21,6 +21,13 @@ class AppTheme {
   static const Color onSuccessContainerLight = Color(0xFF0A3D22);
   static const Color onSuccessContainerDark = Color(0xFFB7EFD1);
 
+  /// "This row will be left alone" is not an error and not a success, but it
+  /// does need to read as a distinct outcome on the import summary.
+  static const Color warningLight = Color(0xFF6B4500);
+  static const Color warningDark = Color(0xFFF5C46B);
+  static const Color warningContainerLight = Color(0xFFFDF0D5);
+  static const Color warningContainerDark = Color(0xFF4A3208);
+
   /// Page background, one step below [surface] so cards stay legible.
   static Color _scaffold(Brightness b) =>
       b == Brightness.light ? const Color(0xFFEBEFF4) : const Color(0xFF0E1116);
@@ -31,6 +38,11 @@ class AppTheme {
       b == Brightness.light ? successContainerLight : successContainerDark;
   static Color _onSuccessContainer(Brightness b) =>
       b == Brightness.light ? onSuccessContainerLight : onSuccessContainerDark;
+
+  static Color _warning(Brightness b) =>
+      b == Brightness.light ? warningLight : warningDark;
+  static Color _warningContainer(Brightness b) =>
+      b == Brightness.light ? warningContainerLight : warningContainerDark;
 
   static ThemeData _build(Brightness brightness) {
     final scheme = _scheme(brightness);
@@ -409,6 +421,10 @@ class AppTheme {
 class AppColors {
   AppColors._();
 
+  /// Foreground for a tick drawn on top of [successContainer].
+  static Color onSuccess(BuildContext context) =>
+      onSuccessFor(Theme.of(context).brightness);
+
   static Color success(BuildContext context) =>
       AppTheme._success(Theme.of(context).brightness);
 
@@ -418,7 +434,29 @@ class AppColors {
   static Color onSuccessContainer(BuildContext context) =>
       AppTheme._onSuccessContainer(Theme.of(context).brightness);
 
-  /// Foreground for a tick drawn on top of [successContainer].
-  static Color onSuccess(BuildContext context) =>
-      AppTheme._success(Theme.of(context).brightness);
+  static Color warning(BuildContext context) =>
+      warningFor(Theme.of(context).brightness);
+
+  static Color warningContainer(BuildContext context) =>
+      warningContainerFor(Theme.of(context).brightness);
+
+  /// Brightness-keyed variants, for callers that already resolved the theme
+  /// and have no [BuildContext] to hand.
+  static Color successFor(Brightness brightness) =>
+      AppTheme._success(brightness);
+
+  static Color onSuccessFor(Brightness brightness) =>
+      AppTheme._onSuccessContainer(brightness);
+
+  static Color successContainerFor(Brightness brightness) =>
+      AppTheme._successContainer(brightness);
+
+  static Color onSuccessContainerFor(Brightness brightness) =>
+      AppTheme._onSuccessContainer(brightness);
+
+  static Color warningFor(Brightness brightness) =>
+      AppTheme._warning(brightness);
+
+  static Color warningContainerFor(Brightness brightness) =>
+      AppTheme._warningContainer(brightness);
 }

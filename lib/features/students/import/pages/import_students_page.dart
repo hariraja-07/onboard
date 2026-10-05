@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../import_controller.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/spacing.dart';
 import '../excel_import_models.dart';
 
@@ -258,17 +259,17 @@ class _PreviewViewState extends State<_PreviewView>
                           _SummaryBadge(
                             label: 'To Add',
                             count: preview.newStudents.length,
-                            color: Colors.green,
+                            tone: _BadgeTone.success,
                           ),
                           _SummaryBadge(
                             label: 'To Update',
                             count: preview.updatedStudents.length,
-                            color: Colors.blue,
+                            tone: _BadgeTone.info,
                           ),
                           _SummaryBadge(
                             label: 'To Skip',
                             count: preview.skippedCount,
-                            color: Colors.orange,
+                            tone: _BadgeTone.warning,
                           ),
                         ],
                       ),
@@ -692,12 +693,11 @@ class _ConfirmBar extends StatelessWidget {
             Text(
               preview.canImport
                   ? [
-                          if (preview.newStudents.isNotEmpty)
-                            'Add ${preview.newStudents.length} new ${preview.newStudents.length == 1 ? "student" : "students"}',
-                          if (preview.updatedStudents.isNotEmpty)
-                            'Update ${preview.updatedStudents.length} existing ${preview.updatedStudents.length == 1 ? "student" : "students"}',
-                        ].join(' and ') +
-                        '?'
+                      if (preview.newStudents.isNotEmpty)
+                        'Add ${preview.newStudents.length} new ${preview.newStudents.length == 1 ? "student" : "students"}',
+                      if (preview.updatedStudents.isNotEmpty)
+                        'Update ${preview.updatedStudents.length} existing ${preview.updatedStudents.length == 1 ? "student" : "students"}',
+                    ].join(' and ?')
                   : 'Nothing to add or update',
               style: theme.textTheme.titleSmall,
             ),
@@ -895,47 +895,70 @@ class _ResultTile extends StatelessWidget {
 ///
 /// Deliberately not an [Expanded]: the preview stacks these in a [Wrap] so
 /// they wrap onto a second line at large text scales instead of overflowing.
+/// Outcome a row falls into after an import is previewed.
+///
+/// Each tone carries its own container and foreground rather than tinting one
+/// shared colour, so the three read as equal peers. The old implementation
+/// tinted at a fixed 12% and picked the label from `MaterialColor.shade800`,
+/// which put 11px text at 3.87:1 on the badge in light mode.
+enum _BadgeTone { success, info, warning }
+
+extension on _BadgeTone {
+  (Color container, Color onContainer) resolve(
+    BuildContext context, {
+    required ColorScheme scheme,
+  }) => switch (this) {
+    _BadgeTone.success => (
+      AppColors.successContainer(context),
+      AppColors.onSuccessContainer(context),
+    ),
+    _BadgeTone.info => (scheme.primaryContainer, scheme.onPrimaryContainer),
+    _BadgeTone.warning => (
+      AppColors.warningContainer(context),
+      AppColors.warning(context),
+    ),
+  };
+}
+
 class _SummaryBadge extends StatelessWidget {
   const _SummaryBadge({
     required this.label,
     required this.count,
-    required this.color,
+    required this.tone,
   });
 
   final String label;
   final int count;
-  final MaterialColor color;
+  final _BadgeTone tone;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final (container, onContainer) = tone.resolve(
+      context,
+      scheme: theme.colorScheme,
+    );
+
     return Container(
       padding: const EdgeInsets.symmetric(
         vertical: Insets.xs,
         horizontal: Insets.sm,
       ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: Radii.allXs,
-      ),
+      decoration: BoxDecoration(color: container, borderRadius: Radii.allXs),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             '$count',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: color.shade800,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: onContainer,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: color.shade800,
-            ),
+            style: theme.textTheme.labelSmall?.copyWith(color: onContainer),
           ),
         ],
       ),
