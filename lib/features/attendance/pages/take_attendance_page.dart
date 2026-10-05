@@ -35,9 +35,18 @@ class TakeAttendancePage extends ConsumerStatefulWidget {
 class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
     with WidgetsBindingObserver {
   final MobileScannerController _scanner = MobileScannerController(
-    detectionSpeed: DetectionSpeed.normal,
+    // Continuous: every frame is analysed rather than the scanner going blind
+    // for a timeout after each hit. Repeats are filtered natively before they
+    // reach Dart, so the controller's own cooldown is only the second line of
+    // defence. This trades a timeout for roughly seven times as many decoder
+    // runs, which is only affordable alongside the single format below.
+    detectionSpeed: DetectionSpeed.noDuplicates,
     facing: CameraFacing.back,
-    detectionTimeoutMs: 250,
+    // ID cards carry a horizontal stripe. One format also keeps ML Kit on its
+    // single-format path; if a card ever fails to read at all rather than
+    // slowly, the symbology is a different one and this is the only line to
+    // change: code39, ean13, upcA.
+    formats: const [BarcodeFormat.code128],
     // The camera is driven from the session phase rather than by the widget's
     // own auto start, so that starting one implies stopping the other.
     autoStart: false,

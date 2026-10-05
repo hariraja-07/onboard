@@ -379,6 +379,33 @@ void main() {
     });
   });
 
+  group('scanner configuration', () {
+    // These two values are silent performance choices. Reverting either one
+    // breaks nothing visibly: scanning just gets slow again, on a phone, where
+    // it is hardest to attribute. The cost of noDuplicates is roughly seven
+    // times as many decoder runs, so they only make sense as a pair.
+    testWidgets('detects Code128 continuously rather than on a timeout', (
+      tester,
+    ) async {
+      await seedStudent('24BMR016', 'Alice');
+
+      await tester.pumpWidget(createSubject());
+      await tester.pumpAndSettle();
+
+      final scanner = tester.widget<MobileScanner>(find.byType(MobileScanner));
+      final controller = scanner.controller!;
+
+      // A stripe on an ID card. One format also keeps ML Kit on its
+      // single-format path.
+      expect(controller.formats, const [BarcodeFormat.code128]);
+      // Every frame is analysed, so the next card in the queue is not missed
+      // while the scanner recovers from the previous one.
+      expect(controller.detectionSpeed, DetectionSpeed.noDuplicates);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  });
+
   group('pausing from the camera overlay', () {
     testWidgets('offers Pause only while a session is active', (tester) async {
       await seedStudent('24BMR016', 'Alice');
