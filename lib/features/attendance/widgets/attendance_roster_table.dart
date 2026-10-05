@@ -58,6 +58,7 @@ class AttendanceRosterTable extends StatelessWidget {
           label:
               '$studentName, ${entry.student.rollNo}, ${isPresent ? "Present" : "Absent"}',
           child: Card(
+            margin: const EdgeInsets.only(bottom: Insets.xs),
             elevation: 0,
             color: isPresent
                 ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)

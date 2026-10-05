@@ -99,7 +99,7 @@ class _SessionCard extends StatelessWidget {
     final ratio = session.total == 0 ? 0.0 : session.present / session.total;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: Insets.sm),
+      margin: const EdgeInsets.only(bottom: Insets.xs),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => context.push('/history/${session.sessionId}'),

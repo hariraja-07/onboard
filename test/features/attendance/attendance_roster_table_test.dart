@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onboard/core/database/database.dart';
 import 'package:onboard/core/theme/app_theme.dart';
+import 'package:onboard/core/theme/spacing.dart';
 import 'package:onboard/features/attendance/attendance_controller.dart';
 import 'package:onboard/features/attendance/models/attendance_models.dart';
 import 'package:onboard/features/attendance/widgets/attendance_roster_table.dart';
@@ -67,7 +68,77 @@ double _contrast(Color a, Color b) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+Future<void> _pumpRoster(WidgetTester tester, int count) async {
+  final entries = [
+    for (var i = 0; i < count; i++)
+      StudentAttendance.absent(_student(name: 'Student $i', rollNo: '$i')),
+  ];
+
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: AppTheme.light,
+      home: Scaffold(
+        body: AttendanceRosterTable(
+          state: const AttendanceState(
+            phase: AttendancePhase.active,
+            sessionId: 1,
+          ),
+          filtered: entries,
+          filter: AttendanceFilter.all,
+        ),
+      ),
+    ),
+  );
+}
+
+/// The rects of the card surfaces as actually painted.
+///
+/// Measuring [Card] directly reports the widget box, which already includes
+/// the margin padding, so two cards look flush even when their surfaces are
+/// visibly apart. The inner [Material] is the painted edge.
+List<Rect> _cardSurfaces(WidgetTester tester) {
+  return find
+      .byType(Card)
+      .evaluate()
+      .map(
+        (card) => tester.getRect(
+          find
+              .descendant(
+                of: find.byElementPredicate((e) => e == card),
+                matching: find.byType(Material),
+              )
+              .first,
+        ),
+      )
+      .toList();
+}
+
 void main() {
+  testWidgets('adjacent student cards do not touch', (tester) async {
+    // The regression: the roster rendered a bare Card while cardTheme.margin
+    // is zero, so rows sat flush. Asserted geometrically rather than against
+    // the literal so the margin can be retuned without breaking the test.
+    await _pumpRoster(tester, 3);
+
+    final surfaces = _cardSurfaces(tester);
+    expect(surfaces, hasLength(3));
+
+    expect(
+      surfaces[1].top - surfaces[0].bottom,
+      greaterThan(0),
+      reason: 'roster cards need a vertical gap to read as separate rows',
+    );
+  });
+
+  testWidgets('the gap between roster cards matches the shared scale', (
+    tester,
+  ) async {
+    await _pumpRoster(tester, 3);
+
+    final surfaces = _cardSurfaces(tester);
+    expect(surfaces[1].top - surfaces[0].bottom, Insets.xs);
+  });
+
   testWidgets('the present tick is legible on its circle in light mode', (
     tester,
   ) async {
