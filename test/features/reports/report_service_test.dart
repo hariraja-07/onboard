@@ -338,22 +338,43 @@ void main() {
   });
 
   group('export', () {
-    test('CSV contains the summary, sessions and absences', () async {
+    test('CSV contains the sessions and absences, with no summary', () async {
       await seed();
-      await reports.build(); // ensure the db is warm before export
       final bundle = await reports.buildBundle();
 
       final csv = reports.buildCsv(bundle);
 
       expect(csv, contains('OnBoard Attendance Report'));
-      expect(csv, contains('Attendance %'));
       expect(csv, contains('24BMR017'));
       expect(csv, contains('Absences'));
       expect(csv, contains('Date,Trip,Session ID,Roll No,Name,Boarding Point'));
       expect(csv, contains('Morning'));
+      // The derived totals are all derivable from the session rows, so they
+      // are not restated where they can only drift from the data.
+      expect(csv, isNot(contains('Attendance %')));
+      expect(csv, isNot(contains('Expected')));
+      expect(csv, isNot(contains('Summary')));
     });
 
-    test('Excel export produces a non-empty workbook', () async {
+    test('the CSV header states the range and trip it covers', () async {
+      await seed();
+      final bundle = await reports.buildBundle(
+        from: DateTime(2026, 10, 1),
+        to: DateTime(2026, 10, 31),
+        trip: TripType.evening,
+      );
+
+      // Without the summary sheet, the header is the only place the export's
+      // scope is recorded.
+      final csv = reports.buildCsv(bundle);
+
+      expect(
+        csv.split('\r\n').first,
+        'OnBoard Attendance Report from 2026-10-01 to 2026-10-31 (Evening)',
+      );
+    });
+
+    test('the range workbook has sessions and absences, and no summary', () async {
       await seed();
       final bundle = await reports.buildBundle();
 
@@ -362,6 +383,22 @@ void main() {
       expect(bytes, isNotEmpty);
       // XLSX is a zip archive: "PK\x03\x04".
       expect(bytes.take(2), [0x50, 0x4B]);
+
+      final workbook = Excel.decodeBytes(bytes);
+      expect(workbook.tables.keys, [
+        ReportService.sessionsSheet,
+        ReportService.absencesSheet,
+      ]);
+      expect(
+        workbook.sheets[ReportService.sessionsSheet],
+        isNotNull,
+        reason: 'the sessions sheet is what should open by default',
+      );
+      expect(
+        workbook.tables.keys,
+        isNot(contains('Summary')),
+        reason: 'totals are derivable from the session rows',
+      );
     });
 
     test('CSV quotes a name that contains a comma', () async {

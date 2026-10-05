@@ -129,7 +129,6 @@ class ReportService {
 
   final AppDatabase db;
 
-  static const String summarySheet = 'Summary';
   static const String sessionsSheet = 'Sessions';
   static const String absencesSheet = 'Absences';
   static const String sessionSheet = 'Session';
@@ -300,25 +299,17 @@ ORDER BY r.roll_no ASC
   }
 
   /// A three-sheet workbook: Summary, per-session Sessions, and Absences.
+  /// A two-sheet workbook: the per-session rows, and the absentees.
+  ///
+  /// No summary sheet. The totals it used to carry are all derivable from the
+  /// Sessions columns, and a sheet that restates them can only ever disagree
+  /// with the rows beneath it. What the file does keep is its own scope, as
+  /// columns on Sessions: Trip is already one, and the dates are the first and
+  /// last row.
   List<int> buildExcel(ReportBundle bundle) {
     final report = bundle.report;
     final excel = Excel.createExcel();
     excel.delete('Sheet1');
-
-    _writeSheet(
-      excel,
-      summarySheet,
-      const ['Metric', 'Value'],
-      [
-        ['From', report.from == null ? 'All time' : formatDate(report.from!)],
-        ['To', report.to == null ? 'All time' : formatDate(report.to!)],
-        ['Sessions', '${report.sessionCount}'],
-        ['Expected', '${report.totalExpected}'],
-        ['Present', '${report.totalPresent}'],
-        ['Absent', '${report.totalAbsent}'],
-        ['Attendance %', report.overallPercent.toStringAsFixed(1)],
-      ],
-    );
 
     _writeSheet(
       excel,
@@ -358,24 +349,24 @@ ORDER BY r.roll_no ASC
       ],
     );
 
-    excel.setDefaultSheet(summarySheet);
+    excel.setDefaultSheet(sessionsSheet);
     return excel.encode() ?? const <int>[];
   }
 
-  /// A single CSV containing the summary, the per-session rows and absences.
+  /// A single CSV with the per-session rows and absences.
+  ///
+  /// [ReportRange] reaches the file through [AttendanceReport.trip] and the
+  /// date bounds, so the header line records what the export covered instead of
+  /// a summary of what it found.
   String buildCsv(ReportBundle bundle) {
     final report = bundle.report;
     final lines = <List<String>>[
-      ['OnBoard Attendance Report'],
-      ['From', report.from == null ? 'All time' : formatDate(report.from!)],
-      ['To', report.to == null ? 'All time' : formatDate(report.to!)],
-      [],
-      ['Summary'],
-      ['Sessions', '${report.sessionCount}'],
-      ['Expected', '${report.totalExpected}'],
-      ['Present', '${report.totalPresent}'],
-      ['Absent', '${report.totalAbsent}'],
-      ['Attendance %', report.overallPercent.toStringAsFixed(1)],
+      [
+        'OnBoard Attendance Report'
+        '${report.from == null ? '' : ' from ${formatDate(report.from!)}'}'
+        '${report.to == null ? '' : ' to ${formatDate(report.to!)}'}'
+        '${report.trip == null ? '' : ' (${report.trip!.label})'}',
+      ],
       [],
       ['Sessions'],
       ['Date', 'Trip', 'Session ID', 'Status', 'Total', 'Present', 'Absent', '%'],
