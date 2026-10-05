@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/theme/spacing.dart';
 import '../attendance_controller.dart';
 import '../models/attendance_models.dart';
 
@@ -35,9 +37,9 @@ class AttendanceRosterTable extends StatelessWidget {
     }
     return ListView.builder(
       padding: EdgeInsets.fromLTRB(
-        8,
-        4,
-        8,
+        Insets.xs,
+        Insets.xxs,
+        Insets.xs,
         MediaQuery.of(context).padding.bottom + 80,
       ),
       itemCount: filtered.length,
@@ -53,7 +55,8 @@ class AttendanceRosterTable extends StatelessWidget {
             : '?';
 
         return Semantics(
-          label: '$studentName, ${entry.student.rollNo}, ${isPresent ? "Present" : "Absent"}',
+          label:
+              '$studentName, ${entry.student.rollNo}, ${isPresent ? "Present" : "Absent"}',
           child: Card(
             elevation: 0,
             color: isPresent
@@ -87,10 +90,13 @@ class AttendanceRosterTable extends StatelessWidget {
                           ),
                         ),
                         padding: const EdgeInsets.all(2),
-                        child: const Icon(
+                        child: Icon(
                           Icons.check,
                           size: 10,
-                          color: Colors.white,
+                          // `Colors.white` on the light-mode primary is fine,
+                          // but on the dark primary it fell to 1.57:1 and the
+                          // tick disappeared. onPrimary tracks both.
+                          color: theme.colorScheme.onPrimary,
                         ),
                       ),
                     ),
@@ -137,7 +143,10 @@ class AttendanceRosterTable extends StatelessWidget {
         isPresent ? Icons.remove_circle_outline : Icons.add_circle_outline,
       ),
       tooltip: isPresent ? 'Undo Present' : 'Mark Present',
-      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      constraints: const BoxConstraints(
+        minWidth: Insets.minTouchTarget,
+        minHeight: Insets.minTouchTarget,
+      ),
       onPressed: onPressed == null ? null : () => onPressed(entry),
     );
   }
