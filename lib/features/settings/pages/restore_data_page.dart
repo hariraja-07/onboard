@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/export/data_export_service.dart';
+import '../../../core/theme/spacing.dart';
 import '../settings_controller.dart';
 
 /// Shows what a chosen backup contains and asks for explicit confirmation
@@ -26,11 +27,11 @@ class RestoreDataPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Restore data')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: Insets.allMd,
         children: [
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: Insets.allMd,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -40,14 +41,14 @@ class RestoreDataPage extends ConsumerWidget {
                         Icons.info_outline,
                         color: Theme.of(context).colorScheme.primary,
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: Insets.xs),
                       Text(
                         'Backup contents',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Insets.sm),
                   _InfoRow('Students', '${info.studentCount}'),
                   _InfoRow('Attendance sessions', '${info.sessionCount}'),
                   _InfoRow('Attendance records', '${info.recordCount}'),
@@ -65,11 +66,11 @@ class RestoreDataPage extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Insets.md),
           Card(
             color: Theme.of(context).colorScheme.errorContainer,
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: Insets.allMd,
               child: Text(
                 'Restoring replaces all students and attendance currently in '
                 'the app with the contents of this backup. A safety copy of '
@@ -80,7 +81,7 @@ class RestoreDataPage extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: Insets.lg),
           FilledButton.icon(
             onPressed: state.isBusy
                 ? null
@@ -88,7 +89,7 @@ class RestoreDataPage extends ConsumerWidget {
             icon: const Icon(Icons.restore),
             label: const Text('Restore this backup'),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: Insets.xs),
           OutlinedButton(
             onPressed: state.isBusy
                 ? null
@@ -155,7 +156,7 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: Insets.xxs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/spacing.dart';
 import '../../../core/theme/theme_mode_controller.dart';
 import '../settings_controller.dart';
 
@@ -50,25 +51,30 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             subtitle:
                 'Create an Excel workbook you can open in Excel or Sheets.',
             loading: busy && _runningAction == 'export',
-            onTap: busy ? null : () => _runAction('export', controller.exportData),
+            onTap: busy
+                ? null
+                : () => _runAction('export', controller.exportData),
           ),
           const _SectionHeader('Appearance'),
           const _ThemeModeSelector(),
-          const SizedBox(height: 16),
+          const SizedBox(height: Insets.md),
           const _SectionHeader('Danger Zone', isDanger: true),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Insets.md,
+              vertical: Insets.xxs,
+            ),
             child: Card(
               elevation: 0,
-              color: Theme.of(context).colorScheme.errorContainer.withValues(
-                alpha: 0.2,
-              ),
+              color: Theme.of(
+                context,
+              ).colorScheme.errorContainer.withValues(alpha: 0.2),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: Radii.allSm,
                 side: BorderSide(
-                  color: Theme.of(context).colorScheme.error.withValues(
-                    alpha: 0.3,
-                  ),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.error.withValues(alpha: 0.3),
                 ),
               ),
               child: _SettingsTile(
@@ -84,7 +90,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: Insets.xl),
         ],
       ),
     );
@@ -102,7 +108,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       final state = ref.read(dataManagementControllerProvider);
       final text = state.error ?? state.message;
       if (text != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(text)));
         ref.read(dataManagementControllerProvider.notifier).acknowledge();
       }
     } finally {
@@ -169,7 +177,12 @@ class _SectionHeader extends StatelessWidget {
         ? theme.colorScheme.error
         : theme.colorScheme.primary;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      padding: const EdgeInsets.fromLTRB(
+        Insets.md,
+        Insets.md,
+        Insets.md,
+        Insets.xs,
+      ),
       child: Text(
         title.toUpperCase(),
         style: theme.textTheme.labelLarge?.copyWith(
@@ -190,7 +203,12 @@ class _ThemeModeSelector extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(themeModeProvider);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.fromLTRB(
+        Insets.md,
+        Insets.xxs,
+        Insets.md,
+        Insets.xs,
+      ),
       child: SegmentedButton<ThemeMode>(
         showSelectedIcon: false,
         segments: const [
@@ -300,7 +318,7 @@ class _ClearAllDialogState extends State<_ClearAllDialog> {
             'A safety copy will be saved automatically first, but the app will '
             'be empty afterwards.',
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Insets.md),
           TextField(
             controller: _controller,
             autofocus: true,

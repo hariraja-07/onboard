@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/spacing.dart';
 import '../attendance_controller.dart';
 import '../models/attendance_models.dart';
 
@@ -39,10 +40,7 @@ class _AttendanceResultBannerState extends State<AttendanceResultBanner>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, -0.3),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     if (widget.state.lastOutcome != null) {
       _triggerEntrance();
@@ -60,7 +58,9 @@ class _AttendanceResultBannerState extends State<AttendanceResultBanner>
     final oldRecord = oldWidget.state.lastRecord;
 
     if (outcome != null &&
-        (outcome != oldOutcome || barcode != oldBarcode || record != oldRecord)) {
+        (outcome != oldOutcome ||
+            barcode != oldBarcode ||
+            record != oldRecord)) {
       _triggerEntrance();
     } else if (outcome == null && oldOutcome != null) {
       _dismissTimer?.cancel();
@@ -109,14 +109,14 @@ class _AttendanceResultBannerState extends State<AttendanceResultBanner>
       AttendanceScanOutcome.marked =>
         student != null
             ? (student.name.isNotEmpty
-                ? '${student.name} (${student.rollNo})'
-                : student.rollNo)
+                  ? '${student.name} (${student.rollNo})'
+                  : student.rollNo)
             : null,
       AttendanceScanOutcome.alreadyPresent =>
         student != null
             ? (student.name.isNotEmpty
-                ? '${student.name} (${student.rollNo})'
-                : student.rollNo)
+                  ? '${student.name} (${student.rollNo})'
+                  : student.rollNo)
             : null,
       AttendanceScanOutcome.notFound =>
         widget.state.lastBarcode != null && widget.state.lastBarcode!.isNotEmpty
@@ -127,7 +127,8 @@ class _AttendanceResultBannerState extends State<AttendanceResultBanner>
             ? 'Ambiguous barcode: ${widget.state.lastBarcode}'
             : '',
     };
-    final line3 = student != null &&
+    final line3 =
+        student != null &&
             (outcome == AttendanceScanOutcome.marked ||
                 outcome == AttendanceScanOutcome.alreadyPresent)
         ? '${student.boardingPoint}${student.institution.isNotEmpty ? ' • ${student.institution}' : ''}'
@@ -152,14 +153,15 @@ class _AttendanceResultBannerState extends State<AttendanceResultBanner>
             child: Material(
               color: color,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Insets.md,
+                  vertical: Insets.sm,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ExcludeSemantics(
-                      child: Icon(icon, color: foreground),
-                    ),
-                    const SizedBox(width: 8),
+                    ExcludeSemantics(child: Icon(icon, color: foreground)),
+                    const SizedBox(width: Insets.xs),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,13 +193,12 @@ class _AttendanceResultBannerState extends State<AttendanceResultBanner>
                                     size: 14,
                                     color: foreground,
                                   ),
-                                  const SizedBox(width: 4),
+                                  const SizedBox(width: Insets.xxs),
                                   Expanded(
                                     child: Text(
                                       line3,
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: foreground,
-                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(color: foreground),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),

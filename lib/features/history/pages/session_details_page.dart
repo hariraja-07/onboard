@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/spacing.dart';
 import '../../attendance/models/attendance_models.dart';
 import '../history_controller.dart';
 import '../widgets/delete_session_dialog.dart';
@@ -67,7 +68,8 @@ class _AttendanceSessionDetailsPageState
             IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: 'Delete session',
-              onPressed: () => _deleteSession(context, ref, details.requireValue),
+              onPressed: () =>
+                  _deleteSession(context, ref, details.requireValue),
             ),
         ],
       ),
@@ -75,7 +77,7 @@ class _AttendanceSessionDetailsPageState
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: Insets.allLg,
             child: Text(
               'Could not load the session.\n$error',
               textAlign: TextAlign.center,
@@ -134,14 +136,19 @@ class _DetailsBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          padding: const EdgeInsets.fromLTRB(
+            Insets.md,
+            Insets.md,
+            Insets.md,
+            Insets.xs,
+          ),
           child: Row(
             children: [
               Text(
                 formatHistoryDate(summary.attendanceDate),
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: Insets.sm),
               Chip(
                 avatar: Icon(
                   summary.tripType == TripType.morning
@@ -156,7 +163,7 @@ class _DetailsBody extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: Insets.horizontalMd,
           child: Wrap(
             spacing: 16,
             runSpacing: 4,
@@ -171,9 +178,9 @@ class _DetailsBody extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: Insets.xs),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: Insets.horizontalMd,
           child: SegmentedButton<AttendanceFilter>(
             segments: const [
               ButtonSegment(value: AttendanceFilter.all, label: Text('All')),
@@ -192,9 +199,9 @@ class _DetailsBody extends StatelessWidget {
             },
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: Insets.xs),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: Insets.horizontalMd,
           child: TextField(
             controller: search,
             decoration: const InputDecoration(
@@ -203,9 +210,9 @@ class _DetailsBody extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: Insets.xs),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: Insets.horizontalMd,
           child: Row(
             children: [
               Expanded(
@@ -216,7 +223,7 @@ class _DetailsBody extends StatelessWidget {
                   onChanged: onInstitutionChanged,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: Insets.xs),
               Expanded(
                 child: _FilterDropdown(
                   hint: 'Boarding Point',
@@ -234,8 +241,8 @@ class _DetailsBody extends StatelessWidget {
               ? const Center(child: Text('No students match these filters.'))
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+                    horizontal: Insets.md,
+                    vertical: Insets.xs,
                   ),
                   itemCount: entries.length,
                   itemBuilder: (context, index) {
@@ -245,11 +252,11 @@ class _DetailsBody extends StatelessWidget {
                     final avatarLetter = entry.name.isNotEmpty
                         ? entry.name[0].toUpperCase()
                         : (entry.rollNo.isNotEmpty
-                            ? entry.rollNo[0].toUpperCase()
-                            : '?');
+                              ? entry.rollNo[0].toUpperCase()
+                              : '?');
 
                     return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
+                      margin: const EdgeInsets.only(bottom: Insets.xs),
                       elevation: 0,
                       color: isPresent
                           ? theme.colorScheme.primaryContainer.withValues(
@@ -290,7 +297,7 @@ class _DetailsBody extends StatelessWidget {
                           children: [
                             _StatusLabel(status: entry.status),
                             if (isPresent && entry.scannedAt != null) ...[
-                              const SizedBox(height: 4),
+                              const SizedBox(height: Insets.xxs),
                               Text(
                                 _formatTime(entry.scannedAt),
                                 style: theme.textTheme.labelSmall?.copyWith(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/spacing.dart';
 import '../../attendance/models/attendance_models.dart';
 import '../history_controller.dart';
 import '../widgets/delete_session_dialog.dart';
@@ -23,7 +24,7 @@ class AttendanceHistoryPage extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: Insets.allLg,
             child: Text(
               'Could not load history.\n$error',
               textAlign: TextAlign.center,
@@ -34,7 +35,7 @@ class AttendanceHistoryPage extends ConsumerWidget {
           if (sessions.isEmpty) {
             return Center(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: Insets.allLg,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -43,7 +44,7 @@ class AttendanceHistoryPage extends ConsumerWidget {
                       size: 64,
                       color: Theme.of(context).colorScheme.outline,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: Insets.md),
                     Text(
                       'No attendance sessions yet',
                       style: TextStyle(
@@ -51,7 +52,7 @@ class AttendanceHistoryPage extends ConsumerWidget {
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: Insets.xs),
                     const Text('Past completed sessions will appear here.'),
                   ],
                 ),
@@ -61,14 +62,16 @@ class AttendanceHistoryPage extends ConsumerWidget {
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(attendanceHistoryProvider),
             child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Insets.md,
+                vertical: Insets.sm,
+              ),
               itemCount: sessions.length,
               itemBuilder: (context, index) {
                 final session = sessions[index];
                 return _SessionCard(
                   session: session,
-                  onDelete: () =>
-                      confirmDeleteSession(context, ref, session),
+                  onDelete: () => confirmDeleteSession(context, ref, session),
                 );
               },
             ),
@@ -96,12 +99,12 @@ class _SessionCard extends StatelessWidget {
     final ratio = session.total == 0 ? 0.0 : session.present / session.total;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: Insets.sm),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => context.push('/history/${session.sessionId}'),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: Insets.allMd,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -114,7 +117,7 @@ class _SessionCard extends StatelessWidget {
                     color: theme.colorScheme.primary,
                     size: 20,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: Insets.xs),
                   Expanded(
                     child: Text(
                       '${formatHistoryDate(session.attendanceDate)} · ${session.tripType.label}',
@@ -146,7 +149,7 @@ class _SessionCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: Insets.sm),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -165,15 +168,12 @@ class _SessionCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: Insets.xs),
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: ratio,
-                  minHeight: 6,
-                ),
+                child: LinearProgressIndicator(value: ratio, minHeight: 6),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: Insets.sm),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -195,7 +195,7 @@ class _SessionCard extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: Insets.xxs),
                       Icon(
                         Icons.chevron_right,
                         size: 16,
@@ -212,7 +212,6 @@ class _SessionCard extends StatelessWidget {
     );
   }
 }
-
 
 enum _SessionAction { delete }
 

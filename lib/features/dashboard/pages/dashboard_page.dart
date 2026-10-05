@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/export/data_export_service.dart';
+import '../../../core/theme/spacing.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../../attendance/models/attendance_models.dart';
 import '../dashboard_service.dart';
@@ -67,7 +68,12 @@ class DashboardPage extends ConsumerWidget {
             onRetry: () => ref.invalidate(dashboardProvider),
           ),
           data: (data) => ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+            padding: const EdgeInsets.fromLTRB(
+              Insets.md,
+              Insets.sm,
+              Insets.md,
+              Insets.xl,
+            ),
             children: [
               Text(
                 todayDisplay,
@@ -76,22 +82,22 @@ class DashboardPage extends ConsumerWidget {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: Insets.sm),
               _TodayCard(data: data),
-              const SizedBox(height: 24),
+              const SizedBox(height: Insets.lg),
               const _SectionHeader('Overview'),
-              const SizedBox(height: 8),
+              const SizedBox(height: Insets.xs),
               _StatsOverview(data: data),
-              const SizedBox(height: 24),
+              const SizedBox(height: Insets.lg),
               const _SectionHeader('Recent sessions'),
-              const SizedBox(height: 8),
+              const SizedBox(height: Insets.xs),
               if (data.recentSessions.isEmpty)
                 Card(
                   margin: EdgeInsets.zero,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                      vertical: 24,
-                      horizontal: 16,
+                      vertical: Insets.lg,
+                      horizontal: Insets.md,
                     ),
                     child: Center(
                       child: Text(
@@ -138,7 +144,7 @@ class _TodayCard extends StatelessWidget {
       return Card(
         margin: EdgeInsets.zero,
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(Insets.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -149,7 +155,7 @@ class _TodayCard extends StatelessWidget {
                     color: theme.colorScheme.primary,
                     size: 20,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: Insets.xs),
                   Text(
                     "Today's Attendance",
                     style: theme.textTheme.titleMedium?.copyWith(
@@ -158,14 +164,14 @@ class _TodayCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: Insets.xs),
               Text(
                 'No attendance taken today.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: Insets.md),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
@@ -189,7 +195,7 @@ class _TodayCard extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(Insets.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -200,7 +206,7 @@ class _TodayCard extends StatelessWidget {
                   color: theme.colorScheme.primary,
                   size: 20,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: Insets.xs),
                 Expanded(
                   child: Text(
                     "Today's Attendance",
@@ -211,12 +217,12 @@ class _TodayCard extends StatelessWidget {
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
+                    horizontal: Insets.xs,
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: Radii.allSm,
                   ),
                   child: Text(
                     '${sessions.length} session${sessions.length == 1 ? '' : 's'}',
@@ -228,24 +234,20 @@ class _TodayCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Insets.md),
             if (morning != null) ...[
               _TripProgressRow(session: morning),
               if (evening != null) const Divider(height: 24),
             ],
-            if (evening != null) ...[
-              _TripProgressRow(session: evening),
-            ],
-            const SizedBox(height: 20),
+            if (evening != null) ...[_TripProgressRow(session: evening)],
+            const SizedBox(height: Insets.md),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: () => context.go('/attendance'),
                 icon: const Icon(Icons.qr_code_scanner_outlined),
                 label: Text(
-                  hasOpenSession
-                      ? 'Resume Attendance'
-                      : 'Take Attendance',
+                  hasOpenSession ? 'Resume Attendance' : 'Take Attendance',
                 ),
               ),
             ),
@@ -272,7 +274,7 @@ class _TripProgressRow extends StatelessWidget {
       onTap: () => context.push('/history/${session.sessionId}'),
       borderRadius: BorderRadius.circular(10),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: Insets.xxs),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -285,7 +287,7 @@ class _TripProgressRow extends StatelessWidget {
                   size: 18,
                   color: theme.colorScheme.primary,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: Insets.xs),
                 Expanded(
                   child: Text(
                     '${session.tripType.label} Trip',
@@ -296,14 +298,14 @@ class _TripProgressRow extends StatelessWidget {
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
+                    horizontal: Insets.xs,
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
                     color: isOpen
                         ? theme.colorScheme.tertiaryContainer
                         : theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: Radii.allXs,
                   ),
                   child: Text(
                     isOpen ? 'In Progress' : 'Completed',
@@ -315,7 +317,7 @@ class _TripProgressRow extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: Insets.xxs),
                 Icon(
                   Icons.chevron_right,
                   size: 18,
@@ -323,7 +325,7 @@ class _TripProgressRow extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: Insets.xs),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -342,13 +344,10 @@ class _TripProgressRow extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: Insets.xs),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: ratio,
-                minHeight: 6,
-              ),
+              child: LinearProgressIndicator(value: ratio, minHeight: 6),
             ),
           ],
         ),
@@ -374,7 +373,7 @@ class _StatsOverview extends StatelessWidget {
             onTap: () => context.go('/students'),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: Insets.sm),
         Expanded(
           child: _OverviewTile(
             icon: Icons.event_note_outlined,
@@ -408,14 +407,14 @@ class _OverviewTile extends StatelessWidget {
       margin: EdgeInsets.zero,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: Radii.allMd,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: Insets.allMd,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(icon, color: theme.colorScheme.primary, size: 24),
-              const SizedBox(height: 12),
+              const SizedBox(height: Insets.sm),
               Text(
                 value,
                 style: theme.textTheme.headlineSmall?.copyWith(
@@ -483,9 +482,7 @@ class _SectionHeader extends StatelessWidget {
     final theme = Theme.of(context);
     return Text(
       title,
-      style: theme.textTheme.titleMedium?.copyWith(
-        fontWeight: FontWeight.w600,
-      ),
+      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
     );
   }
 }
@@ -499,16 +496,16 @@ class _ErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: Insets.allLg,
       children: [
         const SizedBox(height: 80),
         const Icon(Icons.error_outline, size: 48),
-        const SizedBox(height: 12),
+        const SizedBox(height: Insets.sm),
         Text(
           'Could not load dashboard.\n$message',
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: Insets.md),
         Center(
           child: FilledButton(onPressed: onRetry, child: const Text('Retry')),
         ),
@@ -523,14 +520,19 @@ class _DashboardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      padding: const EdgeInsets.fromLTRB(
+        Insets.md,
+        Insets.sm,
+        Insets.md,
+        Insets.xl,
+      ),
       children: [
         const SkeletonBox(width: 140, height: 16),
-        const SizedBox(height: 12),
+        const SizedBox(height: Insets.sm),
         const SkeletonBox(width: double.infinity, height: 140, radius: 16),
-        const SizedBox(height: 24),
+        const SizedBox(height: Insets.lg),
         const SkeletonBox(width: 100, height: 20),
-        const SizedBox(height: 8),
+        const SizedBox(height: Insets.xs),
         const Row(
           children: [
             Expanded(
@@ -540,7 +542,7 @@ class _DashboardSkeleton extends StatelessWidget {
                 radius: 16,
               ),
             ),
-            SizedBox(width: 12),
+            SizedBox(width: Insets.sm),
             Expanded(
               child: SkeletonBox(
                 width: double.infinity,
@@ -550,12 +552,11 @@ class _DashboardSkeleton extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: Insets.lg),
         const SkeletonBox(width: 120, height: 20),
-        const SizedBox(height: 8),
+        const SizedBox(height: Insets.xs),
         const SkeletonBox(width: double.infinity, height: 120, radius: 16),
       ],
     );
   }
 }
-

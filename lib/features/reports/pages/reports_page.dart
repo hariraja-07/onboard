@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/export/data_export_service.dart';
+import '../../../core/theme/spacing.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../../attendance/models/attendance_models.dart';
 import '../../settings/settings_controller.dart';
@@ -34,15 +35,15 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           report.maybeWhen(
             data: (bundle) => PopupMenuButton<_ExportKind>(
               enabled: !_exporting && !bundle.report.isEmpty,
-tooltip: 'Export all sessions in these filters',
-          icon: _exporting
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.ios_share),
-          onSelected: (kind) => _export(kind, bundle),
+              tooltip: 'Export all sessions in these filters',
+              icon: _exporting
+                  ? const SizedBox(
+                      width: Insets.md,
+                      height: Insets.md,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.ios_share),
+              onSelected: (kind) => _export(kind, bundle),
               itemBuilder: (context) => const [
                 PopupMenuItem(
                   value: _ExportKind.excel,
@@ -141,13 +142,13 @@ class _RangeSelector extends ConsumerWidget {
           height: 60,
           child: ListView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: Insets.sm),
             children: [
               for (final preset in presets)
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                    vertical: 6,
-                    horizontal: 4,
+                    vertical: Insets.xs,
+                    horizontal: Insets.xxs,
                   ),
                   child: _DateChip(
                     label: preset.label,
@@ -166,14 +167,16 @@ class _RangeSelector extends ConsumerWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          padding: const EdgeInsets.fromLTRB(
+            Insets.sm,
+            0,
+            Insets.sm,
+            Insets.xs,
+          ),
           child: Row(
             children: [
-              Text(
-                'Trip',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-              const SizedBox(width: 8),
+              Text('Trip', style: Theme.of(context).textTheme.labelLarge),
+              const SizedBox(width: Insets.xs),
               Expanded(
                 child: Wrap(
                   spacing: 8,
@@ -187,8 +190,8 @@ class _RangeSelector extends ConsumerWidget {
                         label: Text(option.$1),
                         selected: range.trip == option.$2,
                         onSelected: (_) =>
-                            ref.read(reportRangeProvider.notifier).state =
-                                range.withTrip(option.$2),
+                            ref.read(reportRangeProvider.notifier).state = range
+                                .withTrip(option.$2),
                       ),
                   ],
                 ),
@@ -217,16 +220,9 @@ class _RangeSelector extends ConsumerWidget {
       ),
       _DatePreset(
         'Last 30 days',
-        ReportRange(
-          from: today.subtract(const Duration(days: 29)),
-          to: today,
-        ),
+        ReportRange(from: today.subtract(const Duration(days: 29)), to: today),
       ),
-      _DatePreset(
-        '📅',
-        ReportRange(),
-        isDatePicker: true,
-      ),
+      _DatePreset('📅', ReportRange(), isDatePicker: true),
     ];
   }
 
@@ -281,21 +277,33 @@ class _DateChip extends StatelessWidget {
   Widget build(BuildContext context) {
     if (range.from == null && range.to == null && label.startsWith('📅')) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        padding: const EdgeInsets.symmetric(
+          vertical: Insets.xs,
+          horizontal: Insets.xxs,
+        ),
         child: ActionChip(
           avatar: const Icon(Icons.date_range_outlined, size: 18),
           label: Text(label),
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          padding: const EdgeInsets.symmetric(
+            vertical: Insets.xs,
+            horizontal: Insets.xxs,
+          ),
           onPressed: onPick,
         ),
       );
     }
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+      padding: const EdgeInsets.symmetric(
+        vertical: Insets.xs,
+        horizontal: Insets.xxs,
+      ),
       child: ChoiceChip(
         label: Text(label),
         selected: selected,
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        padding: const EdgeInsets.symmetric(
+          vertical: Insets.xs,
+          horizontal: Insets.xxs,
+        ),
         onSelected: (_) => onSelected(),
       ),
     );
@@ -322,7 +330,12 @@ class _ReportBodyState extends ConsumerState<_ReportBody> {
   Widget build(BuildContext context) {
     final report = widget.bundle.report;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: const EdgeInsets.fromLTRB(
+        Insets.md,
+        Insets.xs,
+        Insets.md,
+        Insets.xl,
+      ),
       children: [
         _SectionHeader('Sessions (${report.sessionCount})'),
         for (final session in report.sessions)
@@ -385,7 +398,7 @@ class _SessionTile extends StatelessWidget {
     final open = session.status == AttendanceSessionStatus.open;
     final isMorning = session.tripType == TripType.morning;
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: Insets.xs),
       child: ListTile(
         onTap: () => context.push('/history/${session.sessionId}'),
         leading: Icon(
@@ -396,7 +409,7 @@ class _SessionTile extends StatelessWidget {
           '${formatDate(session.attendanceDate)} · ${session.tripType.label}',
         ),
         subtitle: Padding(
-          padding: const EdgeInsets.only(top: 6),
+          padding: const EdgeInsets.only(top: Insets.xs),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -405,7 +418,7 @@ class _SessionTile extends StatelessWidget {
                 '${session.percent.toStringAsFixed(1)}% · '
                 '${open ? 'Open' : 'Completed'}',
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: Insets.xs),
               LinearProgressIndicator(
                 value: session.total == 0 ? 0 : session.present / session.total,
               ),
@@ -417,8 +430,8 @@ class _SessionTile extends StatelessWidget {
         trailing: IconButton(
           icon: exporting
               ? const SizedBox(
-                  width: 20,
-                  height: 20,
+                  width: Insets.md,
+                  height: Insets.md,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.download_outlined),
@@ -440,7 +453,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: Insets.xs),
       child: Text(
         title,
         style: theme.textTheme.titleMedium?.copyWith(
@@ -461,7 +474,7 @@ class _EmptyView extends StatelessWidget {
     final theme = Theme.of(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: Insets.allLg,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -470,9 +483,9 @@ class _EmptyView extends StatelessWidget {
               size: 56,
               color: theme.colorScheme.outline,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: Insets.sm),
             const Text('No sessions match these filters'),
-            const SizedBox(height: 4),
+            const SizedBox(height: Insets.xxs),
             Text(
               // Naming the filter that came up empty, since the most likely
               // cause is a trip chip narrowing a range that had sessions.
@@ -497,17 +510,17 @@ class _ErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: Insets.allLg,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.error_outline, size: 48),
-            const SizedBox(height: 12),
+            const SizedBox(height: Insets.sm),
             Text(
               'Could not build report.\n$message',
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Insets.md),
             FilledButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),
@@ -522,17 +535,21 @@ class _ReportsSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: const EdgeInsets.fromLTRB(
+        Insets.md,
+        Insets.xs,
+        Insets.md,
+        Insets.xl,
+      ),
       children: [
         const SkeletonBox(width: 120, height: 20),
-        const SizedBox(height: 12),
+        const SizedBox(height: Insets.sm),
         const SkeletonBox(width: double.infinity, height: 76, radius: 12),
-        const SizedBox(height: 8),
+        const SizedBox(height: Insets.xs),
         const SkeletonBox(width: double.infinity, height: 76, radius: 12),
-        const SizedBox(height: 8),
+        const SizedBox(height: Insets.xs),
         const SkeletonBox(width: double.infinity, height: 76, radius: 12),
       ],
     );
   }
 }
-

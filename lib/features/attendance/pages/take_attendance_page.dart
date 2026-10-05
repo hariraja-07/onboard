@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../core/theme/spacing.dart';
 import '../attendance_controller.dart';
 import '../models/attendance_models.dart';
 import '../widgets/attendance_result_banner.dart';
@@ -252,14 +253,14 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
                 Material(
                   color: theme.colorScheme.errorContainer,
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: Insets.allMd,
                     child: Row(
                       children: [
                         Icon(
                           Icons.error,
                           color: theme.colorScheme.onErrorContainer,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: Insets.xs),
                         Expanded(
                           child: Text(
                             state.error!,
@@ -285,7 +286,7 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
                 onFlipCamera: _flipCamera,
                 onTogglePause: _togglePause,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: Insets.xs),
               ConstrainedBox(
                 constraints: BoxConstraints(maxHeight: controlsCeiling),
                 child: SingleChildScrollView(
@@ -294,9 +295,9 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       AttendanceResultBanner(state: state),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: Insets.xs),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: Insets.horizontalMd,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -319,8 +320,8 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
                                     : 'Search roll no or name',
                                 isDense: true,
                                 contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
+                                  horizontal: Insets.md,
+                                  vertical: Insets.sm,
                                 ),
                                 suffixIcon:
                                     state.isActive &&
@@ -339,7 +340,7 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
                                     : null,
                               ),
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: Insets.sm),
                             SizedBox(
                               width: double.infinity,
                               child: SegmentedButton<AttendanceFilter>(
@@ -365,7 +366,7 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
                                 },
                               ),
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: Insets.sm),
                             // One Wrap rather than a Row. The actions are what this
                             // row is for, so when the count chip will not fit beside
                             // them it drops to its own line instead of squeezing
@@ -381,14 +382,14 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
                                 ),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
+                                    horizontal: Insets.sm,
+                                    vertical: Insets.xs,
                                   ),
                                   decoration: BoxDecoration(
                                     color: theme
                                         .colorScheme
                                         .surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: Radii.allXs,
                                   ),
                                   // Scales the numbers down rather than truncating
                                   // them when the row is tight.
@@ -546,7 +547,7 @@ class _CameraSection extends StatelessWidget {
                               )
                             : const SizedBox.shrink(),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: Insets.xs),
                       IconButton.filledTonal(
                         icon: const Icon(Icons.cameraswitch_outlined),
                         tooltip: 'Switch camera',
@@ -592,7 +593,10 @@ class _ScannerOverlay extends StatelessWidget {
           child: InkWell(
             onTap: isPaused ? onResume : null,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Insets.sm,
+                vertical: Insets.xs,
+              ),
               // The preview is short and can be short enough for the copy not
               // to fit, so scale the block down instead of clipping it.
               child: Center(
@@ -604,7 +608,7 @@ class _ScannerOverlay extends StatelessWidget {
                       ExcludeSemantics(
                         child: Icon(icon, color: Colors.white70, size: 28),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: Insets.xs),
                       Text(
                         headline,
                         style: const TextStyle(
@@ -705,7 +709,7 @@ class _CameraError extends StatelessWidget {
         error.errorCode == MobileScannerErrorCode.permissionDenied;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: Insets.allMd,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -714,7 +718,7 @@ class _CameraError extends StatelessWidget {
               color: Colors.white70,
               size: 36,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: Insets.xs),
             Text(
               isPermission
                   ? 'Camera permission required'
@@ -726,7 +730,7 @@ class _CameraError extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: Insets.xxs),
             Text(
               isPermission
                   ? 'Please enable camera access in device settings to scan barcodes.'
@@ -751,10 +755,10 @@ class _SessionActions extends StatelessWidget {
   Widget build(BuildContext context) {
     if (state.phase == AttendancePhase.loading) {
       return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
+        padding: EdgeInsets.symmetric(vertical: Insets.xs),
         child: SizedBox(
-          height: 24,
-          width: 24,
+          height: Insets.lg,
+          width: Insets.lg,
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
       );
@@ -763,10 +767,10 @@ class _SessionActions extends StatelessWidget {
     // button so a second tap has nothing to hit.
     if (state.isSessionBusy) {
       return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
+        padding: EdgeInsets.symmetric(vertical: Insets.xs),
         child: SizedBox(
-          height: 24,
-          width: 24,
+          height: Insets.lg,
+          width: Insets.lg,
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
       );
@@ -808,7 +812,10 @@ class _SessionActions extends StatelessWidget {
               ],
               child: Container(
                 constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Insets.xs,
+                  vertical: Insets.xs,
+                ),
                 alignment: Alignment.center,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
