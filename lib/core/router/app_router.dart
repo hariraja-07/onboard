@@ -75,10 +75,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/settings',
         builder: (c, s) => const SettingsPage(),
         routes: [
-          GoRoute(
-            path: 'restore',
-            builder: (c, s) => const RestoreDataPage(),
-          ),
+          GoRoute(path: 'restore', builder: (c, s) => const RestoreDataPage()),
         ],
       ),
     ],
@@ -95,10 +92,10 @@ class NavigationShellWrapper extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: navigationShell,
-      ),
+      // Each branch insets its own top, since the camera preview on the
+      // attendance tab wants to run under the status bar while list tabs do
+      // not. A single SafeArea here would force one policy on both.
+      body: navigationShell,
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: (index) {
