@@ -168,6 +168,98 @@ void main() {
   );
 
   testWidgets(
+    'the trailing button marks and then undoes, while the row only marks',
+    (tester) async {
+      await seedStudent('24BMR016', 'Alice');
+
+      final controller = buildController();
+
+      await tester.pumpWidget(createSubject(controller: controller));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Start Morning Session'));
+      await tester.pumpAndSettle();
+
+      final sessionId = controller.state.sessionId!;
+
+      // Absent to begin with: an add button, no undo.
+      expect(find.byTooltip('Mark Present'), findsOneWidget);
+      expect(find.byTooltip('Undo Present'), findsNothing);
+
+      await tester.tap(find.byTooltip('Mark Present'));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Undo Present'), findsOneWidget);
+      expect(
+        await records.presentStudentIds(sessionId),
+        isNotEmpty,
+        reason: 'the record should exist once marked',
+      );
+
+      // Undo deletes the row rather than writing an absent one, because every
+      // stored row means present everywhere it is counted.
+      await tester.tap(find.byTooltip('Undo Present'));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Mark Present'), findsOneWidget);
+      expect(
+        await records.forSession(sessionId),
+        isEmpty,
+        reason: 'undo must remove the record, not store an absent row',
+      );
+
+      // The row is a one-way action, so tapping a marked student is not an undo.
+      await tester.tap(find.byTooltip('Mark Present'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Alice'));
+      await tester.pumpAndSettle();
+
+      expect(
+        await records.presentStudentIds(sessionId),
+        isNotEmpty,
+        reason: 'tapping a present row must not undo it',
+      );
+      expect(find.byTooltip('Undo Present'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    },
+  );
+
+  testWidgets(
+    'undo is not offered once the session is finished',
+    (tester) async {
+      await seedStudent('24BMR016', 'Alice');
+      final controller = buildController();
+
+      await tester.pumpWidget(createSubject(controller: controller));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Start Morning Session'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Mark Present'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Finish (Morning)'));
+      await tester.pumpAndSettle();
+
+      // Neither button, so a finished session cannot be edited. The row falls
+      // back to a plain present icon; asserted via the row rather than the
+      // icon, because the result banner uses the same icon.
+      expect(find.byTooltip('Undo Present'), findsNothing);
+      expect(find.byTooltip('Mark Present'), findsNothing);
+      final row = find.ancestor(
+        of: find.text('Alice'),
+        matching: find.byType(ListTile),
+      );
+      expect(find.descendant(of: row, matching: find.byIcon(Icons.check_circle)), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    },
+  );
+
+  testWidgets(
     'allows tapping an absent student card in roster to mark attendance',
     (tester) async {
       await seedStudent('24BMR016', 'Alice');
@@ -194,7 +286,10 @@ void main() {
 
       // Student marked present
       expect(find.text('Attendance Marked'), findsOneWidget);
-      expect(find.byIcon(Icons.check_circle), findsWidgets);
+      // The trailing control becomes undo. Scoped to the row, since the
+      // result banner also draws a check_circle.
+      expect(find.byTooltip('Undo Present'), findsOneWidget);
+      expect(find.byTooltip('Mark Present'), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();

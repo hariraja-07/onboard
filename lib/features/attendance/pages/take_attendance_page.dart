@@ -416,6 +416,15 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
                           }
                         }
                       : null,
+                  onTogglePresent: state.isActive
+                      ? (entry) {
+                          if (entry.isPresent) {
+                            notifier.undoPresent(entry);
+                          } else {
+                            notifier.submitBarcode(entry.student.rollNo);
+                          }
+                        }
+                      : null,
                 ),
               ),
             ],

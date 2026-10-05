@@ -11,12 +11,22 @@ class AttendanceRosterTable extends StatelessWidget {
     required this.filtered,
     required this.filter,
     this.onStudentTap,
+    this.onTogglePresent,
   });
 
   final AttendanceState state;
   final List<StudentAttendance> filtered;
   final AttendanceFilter filter;
+
+  /// Marks an absent student present. Never undoes.
   final void Function(StudentAttendance entry)? onStudentTap;
+
+  /// Marks an absent student present, or undoes an existing mark.
+  ///
+  /// Separate from [onStudentTap] so tapping the row stays a one-way action
+  /// and cannot silently drop a student's attendance: undo has to be the
+  /// deliberate tap on the trailing control.
+  final void Function(StudentAttendance entry)? onTogglePresent;
 
   @override
   Widget build(BuildContext context) {
@@ -93,33 +103,42 @@ class AttendanceRosterTable extends StatelessWidget {
               subtitle: Text(
                 '${entry.student.rollNo} • ${entry.student.boardingPoint}',
               ),
-              trailing: isPresent
-                  ? Icon(
-                      Icons.check_circle,
-                      color: theme.colorScheme.primary,
-                      semanticLabel: 'Present',
-                    )
-                  : (state.isActive
-                      ? IconButton(
-                          icon: const Icon(Icons.add_circle_outline),
-                          tooltip: 'Mark Present',
-                          constraints: const BoxConstraints(
-                            minWidth: 48,
-                            minHeight: 48,
-                          ),
-                          onPressed: onStudentTap != null
-                              ? () => onStudentTap!(entry)
-                              : null,
-                        )
-                      : Icon(
-                          Icons.radio_button_unchecked,
-                          color: theme.colorScheme.onSurfaceVariant,
-                          semanticLabel: 'Absent',
-                        )),
+              trailing: _trailingControl(context, entry, isPresent),
             ),
           ),
         );
       },
+    );
+  }
+
+  /// The right-hand control: undo on a present row, mark otherwise.
+  ///
+  /// Only ever one control, so there is a single 48x48 target and the two
+  /// actions cannot be confused with each other or with the row tap.
+  Widget _trailingControl(
+    BuildContext context,
+    StudentAttendance entry,
+    bool isPresent,
+  ) {
+    final theme = Theme.of(context);
+    if (!state.isActive) {
+      return Icon(
+        isPresent ? Icons.check_circle : Icons.radio_button_unchecked,
+        color: isPresent
+            ? theme.colorScheme.primary
+            : theme.colorScheme.onSurfaceVariant,
+        semanticLabel: isPresent ? 'Present' : 'Absent',
+      );
+    }
+
+    final onPressed = onTogglePresent ?? onStudentTap;
+    return IconButton(
+      icon: Icon(
+        isPresent ? Icons.remove_circle_outline : Icons.add_circle_outline,
+      ),
+      tooltip: isPresent ? 'Undo Present' : 'Mark Present',
+      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      onPressed: onPressed == null ? null : () => onPressed(entry),
     );
   }
 }

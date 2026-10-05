@@ -260,6 +260,99 @@ void main() {
     );
   });
 
+  group('deleteForStudent', () {
+    test('removes the mark so the student counts absent again', () async {
+      final sessionId = await openSession();
+      final student = await addStudent('24BMR016');
+      await records.markPresent(
+        sessionId: sessionId,
+        student: student,
+        rawBarcode: 'x',
+        scannedAt: scannedAt,
+      );
+
+      final removed = await records.deleteForStudent(sessionId, student.id);
+
+      expect(removed, isTrue);
+      expect(await records.forSession(sessionId), isEmpty);
+      expect(await records.presentStudentIds(sessionId), isEmpty);
+    });
+
+    test('reports false when there was no mark to undo', () async {
+      final sessionId = await openSession();
+      final student = await addStudent('24BMR016');
+
+      expect(await records.deleteForStudent(sessionId, student.id), isFalse);
+    });
+
+    test('leaves other students in the session alone', () async {
+      final sessionId = await openSession();
+      final asha = await addStudent('24BMR016');
+      final brian = await addStudent('25BMR017');
+      for (final student in [asha, brian]) {
+        await records.markPresent(
+          sessionId: sessionId,
+          student: student,
+          rawBarcode: 'x',
+          scannedAt: scannedAt,
+        );
+      }
+
+      await records.deleteForStudent(sessionId, asha.id);
+
+      expect(await records.presentStudentIds(sessionId), {brian.id});
+    });
+
+    test('is scoped to one session', () async {
+      final first = await openSession();
+      final second = await openSession(forDate: DateTime.utc(2026, 10, 4));
+      final student = await addStudent('24BMR016');
+      await records.markPresent(
+        sessionId: first,
+        student: student,
+        rawBarcode: 'x',
+        scannedAt: scannedAt,
+      );
+      await records.markPresent(
+        sessionId: second,
+        student: student,
+        rawBarcode: 'x',
+        scannedAt: scannedAt,
+      );
+
+      await records.deleteForStudent(first, student.id);
+
+      expect(await records.presentStudentIds(first), isEmpty);
+      expect(
+        await records.presentStudentIds(second),
+        {student.id},
+        reason: 'the same student marked in another session must survive',
+      );
+    });
+
+    test('a re-mark after an undo is reported as new again', () async {
+      final sessionId = await openSession();
+      final student = await addStudent('24BMR016');
+
+      await records.markPresent(
+        sessionId: sessionId,
+        student: student,
+        rawBarcode: 'x',
+        scannedAt: scannedAt,
+      );
+      await records.deleteForStudent(sessionId, student.id);
+      final second = await records.markPresent(
+        sessionId: sessionId,
+        student: student,
+        rawBarcode: 'x',
+        scannedAt: scannedAt,
+      );
+
+      expect(second.isNew, isTrue);
+      expect(await records.forSession(sessionId), hasLength(1));
+    });
+  });
+
   group('sessions', () {
     test('createOpen writes the open status', () async {
       final id = await openSession();

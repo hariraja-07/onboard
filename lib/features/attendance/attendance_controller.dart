@@ -591,6 +591,59 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     }
   }
 
+  /// Undoes a present mark, putting the student back to absent.
+  ///
+  /// Runs on the same queue as [scan] so it cannot interleave with a scan that
+  /// is mid-write: `scan` ignores calls while [AttendanceState.isMarking] is
+  /// set, so an undo that set that flag itself would make a scan already
+  /// queued behind it disappear without an error.
+  Future<void> undoPresent(StudentAttendance entry) {
+    final next = _scanQueue.then((_) => _undoPresent(entry));
+    _scanQueue = next;
+    return next;
+  }
+
+  Future<void> _undoPresent(StudentAttendance entry) async {
+    final sessionId = state.sessionId;
+    if (!state.isActive || sessionId == null) return;
+    if (!entry.isPresent) return;
+
+    state = state.copyWith(
+      isMarking: true,
+      error: null,
+      // Cleared rather than left in place: an undo has no scan outcome, and the
+      // banner and haptic listener on the page both key off this pair, so a
+      // leftover value would be announced as though this were a scan.
+      lastOutcome: null,
+      lastBarcode: null,
+      lastRecord: null,
+      lastStudent: null,
+    );
+    try {
+      final removed = await _records.deleteForStudent(
+        sessionId,
+        entry.student.id,
+      );
+      if (!removed) {
+        state = state.copyWith(
+          isMarking: false,
+          error: 'Could not undo that mark. Try again.',
+        );
+        return;
+      }
+      state = state.copyWith(
+        roster: _withStudentCleared(entry.student.id),
+        isMarking: false,
+      );
+      _onSessionChanged?.call();
+    } catch (error) {
+      state = state.copyWith(
+        isMarking: false,
+        error: 'Could not undo the mark.\n$error',
+      );
+    }
+  }
+
   /// Freezes the current student details against [sessionId].
   ///
   /// History must show the name, institution and boarding point as they were
@@ -668,6 +721,21 @@ class AttendanceController extends StateNotifier<AttendanceState> {
             status: AttendanceStatus.present,
             record: record,
           )
+        else
+          entry,
+    ];
+  }
+
+  /// Puts [studentId] back to absent in the in-memory roster.
+  ///
+  /// Absence is derived rather than stored, so this drops the record and
+  /// leaves the student on the roster, which is the same state a roster entry
+  /// has before they are ever scanned.
+  List<StudentAttendance> _withStudentCleared(int studentId) {
+    return [
+      for (final entry in state.roster)
+        if (entry.student.id == studentId)
+          StudentAttendance.absent(entry.student)
         else
           entry,
     ];

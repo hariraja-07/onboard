@@ -96,6 +96,27 @@ class AttendanceRecordRepository {
     return MarkPresentResult(record: existing, isNew: false);
   }
 
+  /// Removes this student's record for the session, undoing a mark.
+  ///
+  /// Absence is never stored: every row here is a PRESENT row, and both
+  /// [presentStudentIds] and the report absentee query read "no row" as
+  /// absent. So an undo has to delete rather than write an ABSENT row, or the
+  /// student would count as present everywhere at once.
+  ///
+  /// Matching on (session_id, student_id) rather than a record id means a
+  /// second scan cannot delete a newer mark: the row found is whichever one
+  /// the unique index holds, which is the same one the UI displayed.
+  ///
+  /// Returns whether a row was actually deleted, so callers can tell a real
+  /// undo from a no-op instead of assuming success.
+  Future<bool> deleteForStudent(int sessionId, int studentId) async {
+    final removed = await (db.delete(db.attendanceRecords)..where(
+          (t) => t.sessionId.equals(sessionId) & t.studentId.equals(studentId),
+        ))
+        .go();
+    return removed > 0;
+  }
+
   Future<List<AttendanceRecord>> forStudent(int studentId) => (db.select(
     db.attendanceRecords,
   )..where((t) => t.studentId.equals(studentId))).get();

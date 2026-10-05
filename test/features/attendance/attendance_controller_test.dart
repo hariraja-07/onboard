@@ -324,6 +324,126 @@ void main() {
     });
   });
 
+  group('undoing a present mark', () {
+    late AttendanceController notifier;
+    late int sessionId;
+
+    StudentAttendance entryFor(String rollNo) =>
+        notifier.state.roster.firstWhere((e) => e.student.rollNo == rollNo);
+
+    setUp(() async {
+      await addStudent('24BMR016', name: 'Asha Rao');
+      await addStudent('25BMR017', name: 'Bilal Khan');
+      notifier = controller();
+      await notifier.load(forDate: now);
+      await notifier.startSession();
+      sessionId = notifier.state.sessionId!;
+    });
+
+    test('deletes the record and returns the student to absent', () async {
+      await notifier.scan('732924BMR016');
+
+      await notifier.undoPresent(entryFor('24BMR016'));
+
+      expect(await records.forSession(sessionId), isEmpty);
+      expect(entryFor('24BMR016').isPresent, isFalse);
+      expect(notifier.state.presentCount, 0);
+      expect(notifier.state.absentCount, 2);
+    });
+
+    test('leaves the student on the roster', () async {
+      await notifier.scan('732924BMR016');
+
+      await notifier.undoPresent(entryFor('24BMR016'));
+
+      expect(notifier.state.totalCount, 2);
+      expect(
+        notifier.state.roster.map((e) => e.student.rollNo),
+        containsAll(['24BMR016', '25BMR017']),
+      );
+    });
+
+    test('does not store an absent row', () async {
+      await notifier.scan('732924BMR016');
+
+      await notifier.undoPresent(entryFor('24BMR016'));
+
+      // Every stored row is read as present by presentStudentIds and by the
+      // report absentee query, so absence has to stay derived.
+      expect(await records.presentStudentIds(sessionId), isEmpty);
+    });
+
+    test('clears the banner state so no scan outcome is announced', () async {
+      await notifier.scan('732924BMR016');
+      expect(notifier.state.lastOutcome, AttendanceScanOutcome.marked);
+
+      await notifier.undoPresent(entryFor('24BMR016'));
+
+      expect(notifier.state.lastOutcome, isNull);
+      expect(notifier.state.lastBarcode, isNull);
+      expect(notifier.state.lastRecord, isNull);
+      expect(notifier.state.lastStudent, isNull);
+    });
+
+    test('tells dependents the session changed', () async {
+      var changes = 0;
+      final fresh = controller(onSessionChanged: () => changes++);
+      await fresh.load(forDate: now);
+      await fresh.startSession();
+      await fresh.scan('732924BMR016');
+      final afterMark = changes;
+
+      await fresh.undoPresent(
+        fresh.state.roster.firstWhere((e) => e.student.rollNo == '24BMR016'),
+      );
+
+      expect(changes, greaterThan(afterMark));
+    });
+
+    test('a scan queued behind an undo is not dropped', () async {
+      await notifier.scan('732924BMR016');
+
+      // Undo and scan fired together, without awaiting the undo first. The
+      // scan must run after it rather than being swallowed by the busy guard.
+      final undo = notifier.undoPresent(entryFor('24BMR016'));
+      final scan = notifier.submitBarcode('732925BMR017');
+      await Future.wait([undo, scan]);
+
+      expect(notifier.state.presentCount, 1);
+      expect(entryFor('25BMR017').isPresent, isTrue);
+      expect(entryFor('24BMR016').isPresent, isFalse);
+    });
+
+    test('ignores an undo for a student who is not present', () async {
+      await notifier.scan('732924BMR016');
+
+      await notifier.undoPresent(entryFor('25BMR017'));
+
+      expect(notifier.state.presentCount, 1);
+      expect(await records.forSession(sessionId), hasLength(1));
+    });
+
+    test('ignores an undo after the session is finished', () async {
+      await notifier.scan('732924BMR016');
+      final marked = entryFor('24BMR016');
+      await notifier.finishSession();
+
+      await notifier.undoPresent(marked);
+
+      expect(await records.forSession(sessionId), hasLength(1));
+    });
+
+    test('a re-mark after an undo is reported as new', () async {
+      await notifier.scan('732924BMR016');
+      await notifier.undoPresent(entryFor('24BMR016'));
+
+      await notifier.scan('732924BMR016');
+
+      expect(notifier.state.lastOutcome, AttendanceScanOutcome.marked);
+      expect(notifier.state.presentCount, 1);
+    });
+  });
+
   group('camera cooldown', () {
     test('suppresses the same barcode repeated within the window', () async {
       await addStudent('24BMR016');
