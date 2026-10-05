@@ -34,15 +34,15 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           report.maybeWhen(
             data: (bundle) => PopupMenuButton<_ExportKind>(
               enabled: !_exporting && !bundle.report.isEmpty,
-              tooltip: 'Export report',
-              icon: _exporting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.ios_share),
-              onSelected: (kind) => _export(kind, bundle),
+tooltip: 'Export all sessions in these filters',
+          icon: _exporting
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.ios_share),
+          onSelected: (kind) => _export(kind, bundle),
               itemBuilder: (context) => const [
                 PopupMenuItem(
                   value: _ExportKind.excel,
@@ -78,7 +78,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                 onRetry: () => ref.invalidate(attendanceReportProvider(range)),
               ),
               data: (bundle) => bundle.report.isEmpty
-                  ? const _EmptyView()
+                  ? _EmptyView(range: range)
                   : _ReportBody(bundle: bundle),
             ),
           ),
@@ -121,206 +121,263 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
 
 enum _ExportKind { excel, csv }
 
-/// Quick presets plus a custom range picker.
+/// A date row and a trip row, which combine.
+///
+/// The two axes are separate because Morning and Evening are separate
+/// sessions on the same day, so "the last 30 days of evening trips" is a real
+/// question that a single list of mutually exclusive presets cannot answer.
 class _RangeSelector extends ConsumerWidget {
   const _RangeSelector();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final range = ref.watch(reportRangeProvider);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final presets = <(String, ReportRange)>[
-      ('All time', const ReportRange()),
-      (
-        'Last 7 days',
-        ReportRange(from: today.subtract(const Duration(days: 6)), to: today),
-      ),
-      (
-        'Last 30 days',
-        ReportRange(from: today.subtract(const Duration(days: 29)), to: today),
-      ),
-    ];
+    final presets = _datePresets();
 
-    return SizedBox(
-      height: 60,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        children: [
-          for (final (label, preset) in presets)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-              child: ChoiceChip(
-                label: Text(label),
-                selected: range == preset,
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                onSelected: (_) =>
-                    ref.read(reportRangeProvider.notifier).state = preset,
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-            child: ActionChip(
-              avatar: const Icon(Icons.date_range_outlined, size: 18),
-              label: Text(
-                presets.any((p) => p.$2 == range) ? 'Custom' : range.label,
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-              onPressed: () => _pickCustomRange(context, ref, range),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 60,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            children: [
+              for (final preset in presets)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 6,
+                    horizontal: 4,
+                  ),
+                  child: _DateChip(
+                    label: preset.label,
+                    range: preset.range,
+                    selected: _sameDates(range, preset.range),
+                    onSelected: () =>
+                        ref.read(reportRangeProvider.notifier).state = range
+                            .withDates(
+                              from: preset.range.from,
+                              to: preset.range.to,
+                            ),
+                    onPick: () => _pickSpecificDate(context, ref, range),
+                  ),
+                ),
+            ],
           ),
-        ],
-      ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: Row(
+            children: [
+              Text(
+                'Trip',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final option in const <(String, TripType?)>[
+                      ('All trips', null),
+                      ('Morning', TripType.morning),
+                      ('Evening', TripType.evening),
+                    ])
+                      ChoiceChip(
+                        label: Text(option.$1),
+                        selected: range.trip == option.$2,
+                        onSelected: (_) =>
+                            ref.read(reportRangeProvider.notifier).state =
+                                range.withTrip(option.$2),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  Future<void> _pickCustomRange(
+  /// Today, the previous calendar week and a rolling 30 days.
+  List<_DatePreset> _datePresets() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final weekStart = today.subtract(Duration(days: today.weekday - 1));
+    return [
+      _DatePreset('All', const ReportRange()),
+      _DatePreset('Today', ReportRange(from: today, to: today)),
+      _DatePreset(
+        'Last week',
+        ReportRange(
+          from: weekStart.subtract(const Duration(days: 7)),
+          to: weekStart.subtract(const Duration(days: 1)),
+        ),
+      ),
+      _DatePreset(
+        'Last 30 days',
+        ReportRange(
+          from: today.subtract(const Duration(days: 29)),
+          to: today,
+        ),
+      ),
+      _DatePreset(
+        '📅',
+        ReportRange(),
+        isDatePicker: true,
+      ),
+    ];
+  }
+
+  /// Compares dates alone, so a trip chip does not unhighlight a date chip.
+  static bool _sameDates(ReportRange a, ReportRange b) =>
+      a.from == b.from && a.to == b.to;
+
+  Future<void> _pickSpecificDate(
     BuildContext context,
     WidgetRef ref,
     ReportRange current,
   ) async {
     final now = DateTime.now();
-    final picked = await showDateRangePicker(
+    final picked = await showDatePicker(
       context: context,
       firstDate: DateTime(now.year - 5),
       lastDate: DateTime(now.year + 1, 12, 31),
-      initialDateRange: current.from != null && current.to != null
-          ? DateTimeRange(start: current.from!, end: current.to!)
-          : null,
+      initialDate: current.from,
     );
     if (picked == null) return;
-    ref.read(reportRangeProvider.notifier).state = ReportRange(
-      from: picked.start,
-      to: picked.end,
+    ref.read(reportRangeProvider.notifier).state = current.withDates(
+      from: DateTime(picked.year, picked.month, picked.day),
+      to: DateTime(picked.year, picked.month, picked.day),
     );
   }
 }
 
-class _ReportBody extends StatelessWidget {
-  const _ReportBody({required this.bundle});
+class _DatePreset {
+  const _DatePreset(this.label, this.range, {this.isDatePicker = false});
 
-  final ReportBundle bundle;
-
-  @override
-  Widget build(BuildContext context) {
-    final report = bundle.report;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      children: [
-        _SummaryCards(report: report),
-        const SizedBox(height: 24),
-        _SectionHeader('Sessions (${report.sessionCount})'),
-        for (final session in report.sessions) _SessionTile(session: session),
-        const SizedBox(height: 24),
-        _SectionHeader('Absences (${bundle.absences.length})'),
-        if (bundle.absences.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('Everyone was present.'),
-          )
-        else
-          for (final absence in bundle.absences) _AbsenceTile(absence: absence),
-      ],
-    );
-  }
+  final String label;
+  final ReportRange range;
+  final bool isDatePicker;
 }
 
-class _SummaryCards extends StatelessWidget {
-  const _SummaryCards({required this.report});
-
-  final AttendanceReport report;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _StatCard(
-                label: 'Sessions',
-                value: '${report.sessionCount}',
-                icon: Icons.event_note_outlined,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _StatCard(
-                label: 'Present',
-                value: '${report.totalPresent}/${report.totalExpected}',
-                icon: Icons.how_to_reg_outlined,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _StatCard(
-                label: 'Absent',
-                value: '${report.totalAbsent}',
-                icon: Icons.person_off_outlined,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _StatCard(
-                label: 'Attendance',
-                value: '${report.overallPercent.toStringAsFixed(1)}%',
-                icon: Icons.percent_outlined,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
+class _DateChip extends StatelessWidget {
+  const _DateChip({
     required this.label,
-    required this.value,
-    required this.icon,
+    required this.range,
+    required this.selected,
+    required this.onSelected,
+    required this.onPick,
   });
 
   final String label;
-  final String value;
-  final IconData icon;
+  final ReportRange range;
+  final bool selected;
+  final VoidCallback onSelected;
+  final VoidCallback onPick;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: theme.colorScheme.primary),
-            const SizedBox(height: 12),
-            Text(
-              value,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(label, style: theme.textTheme.bodyMedium),
-          ],
+    if (range.from == null && range.to == null && label.startsWith('📅')) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        child: ActionChip(
+          avatar: const Icon(Icons.date_range_outlined, size: 18),
+          label: Text(label),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          onPressed: onPick,
         ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+      child: ChoiceChip(
+        label: Text(label),
+        selected: selected,
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        onSelected: (_) => onSelected(),
       ),
     );
   }
 }
 
+class _ReportBody extends ConsumerStatefulWidget {
+  const _ReportBody({required this.bundle});
+
+  final ReportBundle bundle;
+
+  @override
+  ConsumerState<_ReportBody> createState() => _ReportBodyState();
+}
+
+class _ReportBodyState extends ConsumerState<_ReportBody> {
+  /// Which session is currently being written out.
+  ///
+  /// Keyed per session rather than a single busy flag, so exporting one
+  /// session does not disable every other row's button.
+  int? _exportingSessionId;
+
+  @override
+  Widget build(BuildContext context) {
+    final report = widget.bundle.report;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      children: [
+        _SectionHeader('Sessions (${report.sessionCount})'),
+        for (final session in report.sessions)
+          _SessionTile(
+            session: session,
+            exporting: _exportingSessionId == session.sessionId,
+            onExport: () => _exportSession(session),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _exportSession(AttendanceSessionSummary session) async {
+    setState(() => _exportingSessionId = session.sessionId);
+    final service = ref.read(reportServiceProvider);
+    final gateway = ref.read(backupFileGatewayProvider);
+    try {
+      final bytes = Uint8List.fromList(
+        await service.buildSessionExcel(session),
+      );
+      final location = await gateway.saveExport(
+        bytes,
+        ReportService.sessionFileName(session),
+      );
+      _notify(
+        location == null
+            ? 'Export cancelled.'
+            : 'Saved ${formatDate(session.attendanceDate)} '
+                  '${session.tripType.label} to $location',
+      );
+    } catch (error) {
+      _notify('Could not export: $error');
+    } finally {
+      if (mounted) setState(() => _exportingSessionId = null);
+    }
+  }
+
+  void _notify(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
 class _SessionTile extends StatelessWidget {
-  const _SessionTile({required this.session});
+  const _SessionTile({
+    required this.session,
+    required this.exporting,
+    required this.onExport,
+  });
 
   final AttendanceSessionSummary session;
+  final bool exporting;
+  final VoidCallback onExport;
 
   @override
   Widget build(BuildContext context) {
@@ -345,7 +402,8 @@ class _SessionTile extends StatelessWidget {
             children: [
               Text(
                 '${session.present}/${session.total} present · '
-                '${session.percent.toStringAsFixed(1)}%',
+                '${session.percent.toStringAsFixed(1)}% · '
+                '${open ? 'Open' : 'Completed'}',
               ),
               const SizedBox(height: 6),
               LinearProgressIndicator(
@@ -354,30 +412,20 @@ class _SessionTile extends StatelessWidget {
             ],
           ),
         ),
-        trailing: Chip(
-          label: Text(open ? 'Open' : 'Completed'),
-          backgroundColor: open
-              ? theme.colorScheme.tertiaryContainer
-              : theme.colorScheme.surfaceContainerHighest,
-          side: BorderSide.none,
+        // A single target, and it is not the row: the row opens the session,
+        // so an export tap has to be unambiguous.
+        trailing: IconButton(
+          icon: exporting
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.download_outlined),
+          tooltip: 'Export this session',
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          onPressed: exporting ? null : onExport,
         ),
-      ),
-    );
-  }
-}
-
-class _AbsenceTile extends StatelessWidget {
-  const _AbsenceTile({required this.absence});
-
-  final ReportAbsence absence;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: const Icon(Icons.person_off_outlined),
-      title: Text('${absence.rollNo} · ${absence.name}'),
-      subtitle: Text(
-        '${formatDate(absence.attendanceDate)} · ${absence.tripType.label} · ${absence.boardingPoint}',
       ),
     );
   }
@@ -404,28 +452,36 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _EmptyView extends StatelessWidget {
-  const _EmptyView();
+  const _EmptyView({required this.range});
+
+  final ReportRange range;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.bar_chart_outlined,
-            size: 56,
-            color: theme.colorScheme.outline,
-          ),
-          const SizedBox(height: 12),
-          const Text('No attendance in this range'),
-          const SizedBox(height: 4),
-          Text(
-            'Take attendance and it will show up here.',
-            style: theme.textTheme.bodyMedium,
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.event_note_outlined,
+              size: 56,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(height: 12),
+            const Text('No sessions match these filters'),
+            const SizedBox(height: 4),
+            Text(
+              // Naming the filter that came up empty, since the most likely
+              // cause is a trip chip narrowing a range that had sessions.
+              'Nothing recorded for ${range.label}.',
+              style: theme.textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -466,26 +522,12 @@ class _ReportsSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
-        const Row(
-          children: [
-            Expanded(child: SkeletonBox(width: double.infinity, height: 96, radius: 16)),
-            SizedBox(width: 12),
-            Expanded(child: SkeletonBox(width: double.infinity, height: 96, radius: 16)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        const Row(
-          children: [
-            Expanded(child: SkeletonBox(width: double.infinity, height: 96, radius: 16)),
-            SizedBox(width: 12),
-            Expanded(child: SkeletonBox(width: double.infinity, height: 96, radius: 16)),
-          ],
-        ),
-        const SizedBox(height: 24),
         const SkeletonBox(width: 120, height: 20),
         const SizedBox(height: 12),
+        const SkeletonBox(width: double.infinity, height: 76, radius: 12),
+        const SizedBox(height: 8),
         const SkeletonBox(width: double.infinity, height: 76, radius: 12),
         const SizedBox(height: 8),
         const SkeletonBox(width: double.infinity, height: 76, radius: 12),

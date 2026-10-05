@@ -183,6 +183,7 @@ class AttendanceSessionRepository {
   Future<List<AttendanceSessionSummary>> listSessions({
     DateTime? from,
     DateTime? to,
+    TripType? trip,
     int? limit = 200,
   }) async {
     final query = _db.select(_db.attendanceSessions)
@@ -201,6 +202,9 @@ class AttendanceSessionRepository {
         to.day,
       ).add(const Duration(days: 1));
       query.where((t) => t.attendanceDate.isSmallerThanValue(end));
+    }
+    if (trip != null) {
+      query.where((t) => t.tripType.equals(trip.wireValue));
     }
     if (limit != null) query.limit(limit);
     final sessions = await query.get();

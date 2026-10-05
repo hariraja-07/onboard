@@ -29,11 +29,17 @@ class ReportAbsence {
 
 /// Aggregated attendance across the sessions in a date range.
 class AttendanceReport {
-  const AttendanceReport({required this.sessions, this.from, this.to});
+  const AttendanceReport({
+    required this.sessions,
+    this.from,
+    this.to,
+    this.trip,
+  });
 
   final List<AttendanceSessionSummary> sessions;
   final DateTime? from;
   final DateTime? to;
+  final TripType? trip;
 
   int get sessionCount => sessions.length;
   int get totalExpected => sessions.fold(0, (sum, s) => sum + s.total);
@@ -56,25 +62,46 @@ class ReportBundle {
 
 /// The half-open date range a report is built for. Null bounds mean "no limit".
 class ReportRange {
-  const ReportRange({this.from, this.to});
+  const ReportRange({this.from, this.to, this.trip});
 
   final DateTime? from;
   final DateTime? to;
 
+  /// Which trip to include, or null for both.
+  ///
+  /// Morning and Evening are separate sessions of the same day, so this is
+  /// orthogonal to the dates: a range can ask for the last 30 days of evening
+  /// trips on its own.
+  final TripType? trip;
+
   String get label {
-    if (from == null && to == null) return 'All time';
-    String date(DateTime d) => formatDate(d);
-    if (from != null && to != null) return '${date(from!)} – ${date(to!)}';
-    if (from != null) return 'From ${date(from!)}';
-    return 'Until ${date(to!)}';
+    final dates = switch ((from, to)) {
+      (null, null) => 'All time',
+      (final f?, final t?) => '${formatDate(f)} – ${formatDate(t)}',
+      (final f?, null) => 'From ${formatDate(f)}',
+      (null, final t?) => 'Until ${formatDate(t)}',
+    };
+    if (trip == null) return dates;
+    return '$dates · ${trip!.label}';
   }
+
+  /// The same range narrowed to a trip, leaving the dates alone.
+  ReportRange withTrip(TripType? value) =>
+      ReportRange(from: from, to: to, trip: value);
+
+  /// The same range on different dates, leaving the trip alone.
+  ReportRange withDates({DateTime? from, DateTime? to}) =>
+      ReportRange(from: from, to: to, trip: trip);
 
   @override
   bool operator ==(Object other) =>
-      other is ReportRange && other.from == from && other.to == to;
+      other is ReportRange &&
+      other.from == from &&
+      other.to == to &&
+      other.trip == trip;
 
   @override
-  int get hashCode => Object.hash(from, to);
+  int get hashCode => Object.hash(from, to, trip);
 }
 
 final reportServiceProvider = Provider<ReportService>((ref) {
@@ -89,7 +116,11 @@ final reportRangeProvider = StateProvider<ReportRange>(
 final attendanceReportProvider = FutureProvider.autoDispose
     .family<ReportBundle, ReportRange>((ref, range) {
       final service = ref.watch(reportServiceProvider);
-      return service.buildBundle(from: range.from, to: range.to);
+      return service.buildBundle(
+        from: range.from,
+        to: range.to,
+        trip: range.trip,
+      );
     });
 
 /// Reads attendance data and renders it as a report.
@@ -101,8 +132,19 @@ class ReportService {
   static const String summarySheet = 'Summary';
   static const String sessionsSheet = 'Sessions';
   static const String absencesSheet = 'Absences';
+  static const String sessionSheet = 'Session';
+  static const String rosterSheet = 'Roster';
 
   static const String _brandPrimaryHex = '1A73E8';
+
+  static const List<String> _sessionRosterHeaders = [
+    'Roll No',
+    'Name',
+    'Institution',
+    'Boarding Point',
+    'Status',
+    'Scanned At',
+  ];
 
   /// A timestamped filename so repeated exports don't overwrite each other.
   static String excelFileName(DateTime now) =>
@@ -111,24 +153,48 @@ class ReportService {
   static String csvFileName(DateTime now) =>
       'onboard_report_${formatTimestamp(now)}.csv';
 
-  Future<ReportBundle> buildBundle({DateTime? from, DateTime? to}) async {
-    final report = await build(from: from, to: to);
-    final absences = await absentees(from: from, to: to);
+  /// Names a single session's file after the session rather than the moment of
+  /// export, so re-exporting the same session overwrites instead of piling up
+  /// near-identical files, and so the date in the name is the day's attendance.
+  static String sessionFileName(AttendanceSessionSummary session) =>
+      'onboard_attendance_${formatDate(session.attendanceDate)}'
+      '_${session.tripType.wireValue}.xlsx';
+
+  Future<ReportBundle> buildBundle({
+    DateTime? from,
+    DateTime? to,
+    TripType? trip,
+  }) async {
+    final report = await build(from: from, to: to, trip: trip);
+    final absences = await absentees(from: from, to: to, trip: trip);
     return ReportBundle(report: report, absences: absences);
   }
 
-  Future<AttendanceReport> build({DateTime? from, DateTime? to}) async {
+  Future<AttendanceReport> build({
+    DateTime? from,
+    DateTime? to,
+    TripType? trip,
+  }) async {
     final sessions = await AttendanceSessionRepository(
       db,
-    ).listSessions(from: from, to: to, limit: null);
-    return AttendanceReport(sessions: sessions, from: from, to: to);
+    ).listSessions(from: from, to: to, trip: trip, limit: null);
+    return AttendanceReport(
+      sessions: sessions,
+      from: from,
+      to: to,
+      trip: trip,
+    );
   }
 
   /// Students on a session's frozen roster who were never marked present.
   ///
   /// Uses the snapshot roster rather than the live student table, so a report
   /// reflects who was actually expected on the day.
-  Future<List<ReportAbsence>> absentees({DateTime? from, DateTime? to}) async {
+  Future<List<ReportAbsence>> absentees({
+    DateTime? from,
+    DateTime? to,
+    TripType? trip,
+  }) async {
     final where = <String>[];
     final variables = <Variable>[];
     if (from != null) {
@@ -144,6 +210,10 @@ class ReportService {
           DateTime(to.year, to.month, to.day).add(const Duration(days: 1)),
         ),
       );
+    }
+    if (trip != null) {
+      where.add('s.trip_type = ?');
+      variables.add(Variable<String>(trip.wireValue));
     }
     final whereClause = where.isEmpty ? '' : 'AND ${where.join(' AND ')}';
 
@@ -169,6 +239,64 @@ ORDER BY s.attendance_date DESC, r.roll_no ASC
           boardingPoint: row.read<String>('boarding_point'),
         ),
     ];
+  }
+
+  /// One sheet listing the whole roster of one session with each student's
+  /// outcome.
+  ///
+  /// One query for everything the sheet needs: the frozen roster left joined to
+  /// the records, so a student with no row reads as absent. Names come from the
+  /// snapshot rather than the student table, matching what the session screen
+  /// shows, so a later rename cannot rewrite an exported past session.
+  Future<List<int>> buildSessionExcel(AttendanceSessionSummary session) async {
+    final rows = await db
+        .customSelect(
+          '''
+SELECT r.roll_no, r.name, r.institution, r.boarding_point,
+  ar.scanned_at
+FROM attendance_session_roster r
+LEFT JOIN attendance_records ar
+  ON ar.session_id = r.session_id AND ar.student_id = r.student_id
+WHERE r.session_id = ?
+ORDER BY r.roll_no ASC
+''',
+          variables: [Variable<int>(session.sessionId)],
+        )
+        .get();
+
+    final present = session.present;
+    final expected = session.total;
+
+    final excel = Excel.createExcel();
+    excel.delete('Sheet1');
+    _writeSheet(excel, sessionSheet, _sessionRosterHeaders, [
+      [
+        formatDate(session.attendanceDate),
+        session.tripType.label,
+        session.status == AttendanceSessionStatus.completed
+            ? 'Completed'
+            : 'Open',
+        '$present/$expected',
+        '${session.percent.toStringAsFixed(1)}%',
+      ],
+    ]);
+    _writeSheet(excel, rosterSheet, _sessionRosterHeaders, [
+      for (final row in rows)
+        [
+          row.read<String>('roll_no'),
+          row.read<String>('name'),
+          row.read<String>('institution'),
+          row.read<String>('boarding_point'),
+          row.readNullable<DateTime>('scanned_at') == null
+              ? 'Absent'
+              : 'Present',
+          row.readNullable<DateTime>('scanned_at') == null
+              ? ''
+              : formatDateTime(row.read<DateTime>('scanned_at')),
+        ],
+    ]);
+    excel.setDefaultSheet(rosterSheet);
+    return excel.encode() ?? const <int>[];
   }
 
   /// A three-sheet workbook: Summary, per-session Sessions, and Absences.
