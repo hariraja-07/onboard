@@ -20,14 +20,32 @@ With camera-based barcode scanning, immutable session records, bulk Excel studen
 
 ## Features
 
-- 📷 **Instant Barcode Scanning:** Continuous Code 128 camera scanning powered by `mobile_scanner`, with haptic feedback, duplicate detection, and instant boarding verification. Barcode entry can also be typed by hand when a card is damaged or unreadable.
-- 📴 **100% Local-First & Offline:** Backed by an embedded SQLite database via Drift. Zero cloud dependency—attendance works reliably anywhere on the transit route.
-- 📋 **Live Attendance Roster:** Real-time visibility into who has boarded and who is missing, with manual toggle override for damaged or forgotten ID cards.
-- 🚌 **Trip Management:** Dedicated morning and evening trip sessions with immutable snapshot records preserving student details and timestamps at the moment of scan.
-- 📊 **Excel Bulk Import:** Import student directories directly from `.xlsx` spreadsheets with preview validation, column mapping, and duplicate handling.
-- 📑 **Automated Report Export:** Generate structured, formatted XLSX attendance logs and summary reports ready for college administration.
-- 💾 **Database Backup & Restore:** Built-in local database backup and recovery tools to safeguard historical data across devices.
-- 🎨 **Adaptive Material 3 Design:** Edge-to-edge UI with light, dark, and system theme modes calibrated for high contrast and outdoor daylight readability.
+- **Continuous Code 128 scanning.** The camera stays live for the duration of a
+  session, so students board without anyone tapping a shutter. Haptics confirm
+  a mark, duplicate scans are suppressed, and a barcode can be typed by hand
+  when a card is damaged or unreadable.
+- **Local-first and offline.** Attendance lives in an embedded SQLite database
+  via Drift. There is no cloud dependency and no account, so a route with no
+  cellular coverage records exactly as well as one with full bars.
+- **Live roster.** Who has boarded and who is missing is visible while the
+  session is open, filterable by present and absent, and a missing student can
+  be marked by hand.
+- **Morning and evening trips.** One session per trip, and the roster is
+  snapshotted when the session opens and again when it closes. Editing a
+  student later cannot rewrite a session already taken.
+- **Excel bulk import.** A student directory imports from `.xlsx` or `.xls`.
+  The parser finds the header row itself and the preview shows exactly what it
+  read before a single row is written, split into new, existing, duplicate, and
+  invalid.
+- **Report export.** Filter by date range and trip, then export the whole range
+  or a single session as XLSX, or the range as CSV. Exports name the session
+  rather than the moment of export.
+- **Backup and restore.** A backup is written before any destructive step, and
+  clearing data requires typing `CLEAR` to confirm. Restores are validated for
+  schema version and referential integrity before anything is written.
+- **Material 3 interface.** Edge-to-edge layout with system, light, and dark
+  themes, and colour schemes hand-tuned to WCAG contrast targets rather than
+  generated from a seed colour.
 
 ## Tech Stack
 
