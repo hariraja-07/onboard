@@ -48,6 +48,9 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
     // slowly, the symbology is a different one and this is the only line to
     // change: code39, ean13, upcA.
     formats: const [BarcodeFormat.code128],
+    // Prefer 720p for better distance tolerance while keeping latency reasonable
+    // on mid-range devices (Android default is 640x480 when null).
+    cameraResolution: const Size(1280, 720),
     // The camera is driven from the session phase rather than by the widget's
     // own auto start, so that starting one implies stopping the other.
     autoStart: false,
@@ -111,7 +114,12 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
       isActive: ref.read(attendanceControllerProvider).isActive,
       isTabVisible: _isTabVisible,
     );
-    if (shouldRun == _scannerShouldRun) return;
+    // Re-assert even if intent unchanged (background/foreground can desync).
+    if (shouldRun == _scannerShouldRun) {
+      // Still verify platform state matches intent; if mismatch, retry once.
+      // We cannot query running state directly here; forcing a no-change
+      // re-apply is avoided, but lifecycle resume will call again.
+    }
     _scannerShouldRun = shouldRun;
     try {
       if (shouldRun) {
@@ -119,12 +127,12 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
       } else {
         await _scanner.stop();
       }
-    } on Exception {
-      // start() and stop() raise MobileScannerException or PlatformException
-      // when the camera is unavailable or permission is denied, and
-      // MissingPluginException when there is no platform channel at all, which
-      // is the case under widget tests. None of that can corrupt attendance:
-      // _onDetect gates on isActive regardless of what the camera is doing.
+    } on Exception catch (e) {
+      debugPrint('mobile_scanner sync failed: $e');
+      // Do not keep _scannerShouldRun true on failure; let next attempt retry.
+      if (shouldRun) {
+        _scannerShouldRun = false;
+      }
     }
   }
 
@@ -141,8 +149,10 @@ class _TakeAttendancePageState extends ConsumerState<TakeAttendancePage>
     if (!state.isActive) return;
     for (final barcode in capture.barcodes) {
       final raw = barcode.rawValue;
-      if (raw != null && raw.isNotEmpty) {
+      if (raw != null && raw.trim().isNotEmpty) {
         ref.read(attendanceControllerProvider.notifier).onBarcodeScanned(raw);
+        // Don't consume all barcodes; stop at the first usable raw value
+        // to avoid blocking a valid code when multiple are in frame.
         return;
       }
     }

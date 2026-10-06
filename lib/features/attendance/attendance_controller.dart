@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -229,7 +231,9 @@ class AttendanceController extends StateNotifier<AttendanceState> {
 
   /// How long an unchanged barcode is ignored after a camera scan. A card held
   /// in front of the lens is reported on every frame.
-  static const Duration defaultScanCooldown = Duration(seconds: 2);
+  /// Slightly reduced to improve re-presentation responsiveness while avoiding
+  /// frame spam; still guarded by plugin-side deduplication.
+  static const Duration defaultScanCooldown = Duration(milliseconds: 1200);
 
   final StudentRepository _students;
   final AttendanceSessionRepository _sessions;
@@ -530,7 +534,13 @@ class AttendanceController extends StateNotifier<AttendanceState> {
   /// since nothing could be recorded for them.
   Future<void> scan(String rawBarcode) async {
     final sessionId = state.sessionId;
-    if (!state.isActive || sessionId == null || state.isMarking) return;
+    if (!state.isActive || sessionId == null) return;
+    if (state.isMarking) {
+      // Don't drop silently during lifecycle writes; re-queue this scan
+      // after the current work completes to avoid missing a boarding.
+      unawaited(_enqueueScan(rawBarcode));
+      return;
+    }
 
     state = state.copyWith(
       isMarking: true,
