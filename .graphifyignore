@@ -13,3 +13,7 @@ web/
 # go stale and add volume without adding meaning. The hand-written Drift tables
 # in lib/core/database/tables.dart carry the real schema.
 lib/core/database/database.g.dart
+
+# README screenshots. Binary images with no code meaning - graphify would
+# queue them for vision semantic extraction on every run.
+docs/screenshots/

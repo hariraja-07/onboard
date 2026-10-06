@@ -18,6 +18,20 @@ Managing student bus boarding with paper logs or slow cloud-dependent apps leads
 
 With camera-based barcode scanning, immutable session records, bulk Excel student imports, and instant XLSX report generation, OnBoard turns student check-in into a seamless, verifiable process that never stalls due to network outages.
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/dashboard.jpeg" width="300" alt="Dashboard" /><br /><sub>Dashboard — daily metrics & quick actions</sub></td>
+    <td align="center"><img src="docs/screenshots/attendance.jpeg" width="300" alt="Attendance" /><br /><sub>Live Code 128 scanning session</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/history.jpeg" width="200" alt="History" /><br /><sub>Session history</sub></td>
+    <td align="center"><img src="docs/screenshots/reports.jpeg" width="200" alt="Reports" /><br /><sub>Reports & XLSX export</sub></td>
+    <td align="center"><img src="docs/screenshots/settings.jpeg" width="200" alt="Settings" /><br /><sub>Settings, theme & backup</sub></td>
+  </tr>
+</table>
+
 ## Features
 
 - **Continuous Code 128 scanning.** The camera stays live for the duration of a
